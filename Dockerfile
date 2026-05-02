@@ -16,7 +16,7 @@ COPY . .
 
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
-RUN npm ci && npm run build
+RUN npm install && npm run build
 
 RUN mkdir -p storage/logs \
              storage/framework/cache \
