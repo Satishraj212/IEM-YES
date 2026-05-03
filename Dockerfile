@@ -1,4 +1,4 @@
-# build v3
+# build v4
 FROM php:8.4-cli-alpine
 
 RUN apk add --no-cache \
@@ -13,6 +13,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+# Force cache invalidation so new files (server.php) are always copied
+ARG CACHEBUST=4
 COPY . .
 
 RUN composer install --optimize-autoloader --no-dev --no-interaction
