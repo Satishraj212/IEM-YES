@@ -1,4 +1,4 @@
-# build v2
+# build v3
 FROM php:8.4-cli-alpine
 
 RUN apk add --no-cache \
@@ -28,8 +28,7 @@ RUN mkdir -p storage/logs \
 
 EXPOSE 8000
 
-CMD php artisan migrate --force --no-interaction \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache \
+CMD php artisan config:cache || true \
+    && php artisan route:cache || true \
+    && php artisan view:cache || true \
     && php -S 0.0.0.0:${PORT:-8000} server.php
