@@ -9,16 +9,9 @@ use App\Models\AwardNomination;
 use App\Models\AwardVote;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
-class AwardController extends Controller
+class AwardsController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     // ── Index ──────────────────────────────────────────────────────────────────
 
     public function index()

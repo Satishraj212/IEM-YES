@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
@@ -18,7 +15,23 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+
+            // Branch membership fields
+            $table->unsignedBigInteger('branch_id')->nullable()->index();
+            $table->string('member_id')->nullable();
+            $table->string('role', 30)->default('member');        // admin | branch_admin | member
+            $table->string('status', 30)->default('active');      // active | inactive | pending
+            $table->string('faculty')->nullable();
+            $table->string('phone', 30)->nullable();
+            $table->string('student_id', 50)->nullable();
+            $table->string('avatar_path')->nullable();
+            $table->date('joined_date')->nullable();
+            $table->unsignedInteger('cpd_points')->default(0);
+            $table->unsignedInteger('volunteer_hours')->default(0);
+            $table->string('current_role')->nullable();           // position title in branch
+
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -37,9 +50,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

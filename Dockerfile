@@ -13,9 +13,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Force cache invalidation so new files (server.php) are always copied
-ARG CACHEBUST=4
 COPY . .
+
+RUN printf '<?php\n$uri=urldecode(parse_url($_SERVER["REQUEST_URI"],PHP_URL_PATH));\nif($uri!=="/"&&file_exists(__DIR__."/public".$uri)){return false;}\nrequire __DIR__."/public/index.php";\n' > /app/server.php
 
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 

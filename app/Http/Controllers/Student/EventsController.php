@@ -11,13 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
-class EventController extends Controller
+class EventsController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     // ── Index ──────────────────────────────────────────────────────────────────
 
     public function index(Request $request)

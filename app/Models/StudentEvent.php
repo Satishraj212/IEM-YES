@@ -62,17 +62,17 @@ class StudentEvent extends Model
 
     public function branch(): BelongsTo
     {
-        return $this->belongsTo(StudentBranch::class, 'branch_id');
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(StudentMember::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(StudentMember::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function budget(): HasOne

@@ -26,6 +26,6 @@ class StudentEventRegistration extends Model
 
     public function member(): BelongsTo
     {
-        return $this->belongsTo(StudentMember::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

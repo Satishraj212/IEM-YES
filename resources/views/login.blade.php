@@ -117,11 +117,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--off);min-height:100vh;dis
 
         <div class="card-body">
 
-            {{-- Session/Validation Errors --}}
-            @if(session('error'))
+            {{-- Validation / auth errors --}}
+            @if ($errors->any())
             <div class="alert alert-danger show">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {{ session('error') }}
+                {{ $errors->first() }}
             </div>
             @endif
 
@@ -134,17 +134,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--off);min-height:100vh;dis
                 Student chapter accounts are created by YES administrators. Contact your national liaison if you need credentials.
             </div>
 
-            <input type="hidden" id="role-input" value="admin"/>
+            <form method="POST" action="{{ route('login.post') }}">
+                @csrf
 
-                <div class="field">
+                <div class="field @error('email') has-error @enderror">
                     <label for="email">Email Address</label>
-                    <input type="email" id="email" placeholder="yourname@iem.org.my" autocomplete="email"/>
+                    <input type="email" id="email" name="email"
+                           value="{{ old('email') }}"
+                           placeholder="yourname@iem.org.my"
+                           autocomplete="email" required/>
+                    @error('email')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
                 </div>
 
-                <div class="field">
+                <div class="field @error('password') has-error @enderror">
                     <label for="password">Password</label>
                     <div class="pw-wrap">
-                        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+                        <input type="password" id="password" name="password"
+                               placeholder="••••••••" autocomplete="current-password" required/>
                         <button type="button" class="pw-toggle" onclick="togglePw()" title="Show/hide password">
                             <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>
@@ -153,10 +161,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--off);min-height:100vh;dis
 
                 <div style="height:14px"></div>
 
-                <button type="button" class="btn-submit" id="btn-submit" onclick="goToDashboard()">
+                <button type="submit" class="btn-submit" id="btn-submit">
                     <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                    <span id="btn-label">Sign In to Admin Panel</span>
+                    <span id="btn-label">Sign In</span>
                 </button>
+            </form>
         </div>
 
         <div class="card-foot">
@@ -172,23 +181,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--off);min-height:100vh;dis
 
 <script>
 function switchRole(role) {
-    document.getElementById('role-input').value = role;
     document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
     document.getElementById('tab-chapter').classList.toggle('active', role === 'chapter');
-    document.getElementById('hint-admin').style.display  = role === 'admin'   ? 'flex' : 'none';
+    document.getElementById('hint-admin').style.display   = role === 'admin'   ? 'flex' : 'none';
     document.getElementById('hint-chapter').style.display = role === 'chapter' ? 'flex' : 'none';
     document.getElementById('btn-label').textContent =
         role === 'admin' ? 'Sign In to Admin Panel' : 'Sign In to Chapter Dashboard';
-}
-
-const ADMIN_URL   = '{{ route('admin.dashboard') }}';
-const STUDENT_URL = '{{ route('student.dashboard') }}';
-
-function goToDashboard() {
-    const role = document.getElementById('role-input').value;
-    document.getElementById('btn-label').textContent = 'Redirecting…';
-    document.getElementById('btn-submit').disabled = true;
-    window.location.href = role === 'admin' ? ADMIN_URL : STUDENT_URL;
 }
 
 function togglePw() {

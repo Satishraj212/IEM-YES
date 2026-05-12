@@ -108,11 +108,11 @@
         <div class="pb">
             @forelse($recentActivity as $log)
                 <div class="act-item">
-                    <div class="act-dot" style="background:{{ $log->dot_color ?? 'var(--navy)' }}">
-                        <svg viewBox="0 0 24 24">{!! $log->dot_icon ?? '<circle cx="12" cy="12" r="3"/>' !!}</svg>
+                    <div class="act-dot" style="background:{{ $log->dot_colour }}">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>
                     </div>
                     <div>
-                        <div class="act-txt">{!! $log->message !!}</div>
+                        <div class="act-txt">{{ $log->title }}</div>
                         <span class="act-time">{{ $log->created_at->diffForHumans() }}</span>
                     </div>
                 </div>

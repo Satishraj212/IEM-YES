@@ -3,7 +3,8 @@
     "allow": [
       "Bash(php artisan *)",
       "Bash(xargs ls *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

@@ -241,23 +241,18 @@ class AdminSeeder extends Seeder
 
         // ── Activity Logs ──────────────────────────────────────────────────────
         $logs = [
-            ['events',  '<strong>Nurul Ain</strong> registered for the Hackathon',                  'var(--green)', '<polyline points="20 6 9 17 4 12"/>'],
-            ['members', '<strong>Ahmad Razif</strong> joined as Student Member',                     'var(--navy)',  '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'],
-            ['events',  'New event <strong>BIM Workshop</strong> published',                         'var(--gold)',  '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>'],
-            ['events',  '<strong>Renewable Energy Camp</strong> at 50% capacity',                    'var(--red)',   '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>'],
-            ['network', '<strong>Sabah Branch</strong> added 12 new members',                        'var(--navy)',  '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'],
-            ['network', '<strong>Johor Chapter</strong> endorsed the YES Declaration 2024',          'var(--green)', '<polyline points="20 6 9 17 4 12"/>'],
-            ['events',  'Event <strong>STEM Career Fair 2025</strong> registration opened',          'var(--gold)',  '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>'],
-            ['events',  '<strong>Industry Collaboration Summit</strong> — 42% seats filled',         'var(--amber)', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'],
+            ['event_registered', 'Nurul Ain registered for the Hackathon'],
+            ['membership_request', 'Ahmad Razif joined as Student Member'],
+            ['event_published', 'New event BIM Workshop published'],
+            ['event_published', 'Renewable Energy Camp at 50% capacity'],
+            ['membership_request', 'Sabah Branch added 12 new members'],
+            ['pledge_renewed', 'Johor Chapter endorsed the YES Declaration 2024'],
+            ['event_published', 'STEM Career Fair 2025 registration opened'],
+            ['event_submitted', 'Industry Collaboration Summit submitted for review'],
         ];
 
-        foreach ($logs as [$type, $message, $color, $icon]) {
-            ActivityLog::create([
-                'type'      => $type,
-                'message'   => $message,
-                'dot_color' => $color,
-                'dot_icon'  => $icon,
-            ]);
+        foreach ($logs as [$type, $title]) {
+            ActivityLog::record(null, $type, $title);
         }
     }
 }

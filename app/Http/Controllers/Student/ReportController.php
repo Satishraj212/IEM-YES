@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\AnnualReport;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
@@ -12,11 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     public function index()
     {
         /** @var \App\Models\User $user */
@@ -96,13 +93,51 @@ class ReportController extends Controller
      * Generate and download a PDF summary report.
      * Requires barryvdh/laravel-dompdf in production.
      */
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'report_file' => 'required|file|mimes:pdf,doc,docx|max:20480',
+            'year'        => 'required|integer|min:2000|max:2100',
+            'title'       => 'required|string|max:255',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user   = Auth::user();
+        $branch = $user->branch;
+
+        abort_unless($user->isBranchAdmin(), 403);
+
+        $file = $request->file('report_file');
+        $path = $file->store("branches/{$branch->id}/annual-reports", 'public');
+
+        $report = AnnualReport::create([
+            'branch_id'    => $branch->id,
+            'submitted_by' => $user->id,
+            'year'         => $request->year,
+            'title'        => $request->title,
+            'file_path'    => $path,
+            'file_name'    => $file->getClientOriginalName(),
+            'file_size'    => $file->getSize(),
+            'status'       => 'pending',
+        ]);
+
+        ActivityLog::record(
+            $branch->id,
+            'report_submitted',
+            "Annual report submitted for {$request->year}",
+            $user->id,
+            $report
+        );
+
+        return back()->with('success', 'Annual report submitted for HQ review.');
+    }
+
     public function download()
     {
         /** @var \App\Models\User $user */
         $user   = Auth::user();
         $branch = $user->branch;
 
-        // Placeholder — in production use: PDF::loadView('reports.pdf', $data)->download(...)
         return response()->json([
             'message' => 'PDF generation requires barryvdh/laravel-dompdf. Install it and implement PDF::loadView().',
             'branch'  => $branch->name,

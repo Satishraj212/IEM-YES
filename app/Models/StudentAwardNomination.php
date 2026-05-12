@@ -37,12 +37,12 @@ class StudentAwardNomination extends Model
 
     public function nominator(): BelongsTo
     {
-        return $this->belongsTo(StudentMember::class, 'nominated_by');
+        return $this->belongsTo(User::class, 'nominated_by');
     }
 
     public function nominee(): BelongsTo
     {
-        return $this->belongsTo(StudentMember::class, 'nominee_id');
+        return $this->belongsTo(User::class, 'nominee_id');
     }
 
     public function votes(): HasMany

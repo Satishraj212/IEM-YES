@@ -65,6 +65,30 @@ class StudentEventController extends Controller
         return response()->json(['submission' => $this->formatForJs($submission->fresh())]);
     }
 
+    public function approve(Request $request, StudentEventSubmission $submission)
+    {
+        $history   = $submission->stage_history ?? [];
+        $history[] = $submission->stage;
+        $submission->update(['stage' => 'approved', 'stage_history' => $history,
+                             'admin_notes' => $request->admin_notes]);
+
+        ActivityLog::log('student_event_approve', "Student event {$submission->title} approved.");
+
+        return back()->with('success', 'Submission approved.');
+    }
+
+    public function reject(Request $request, StudentEventSubmission $submission)
+    {
+        $history   = $submission->stage_history ?? [];
+        $history[] = $submission->stage;
+        $submission->update(['stage' => 'rejected', 'stage_history' => $history,
+                             'admin_notes' => $request->admin_notes]);
+
+        ActivityLog::log('student_event_reject', "Student event {$submission->title} rejected.");
+
+        return back()->with('error', 'Submission rejected.');
+    }
+
     private function advance(StudentEventSubmission $s, array $order): void
     {
         $idx = array_search($s->stage, $order);
