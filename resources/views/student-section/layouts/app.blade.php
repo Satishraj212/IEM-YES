@@ -329,10 +329,13 @@ body{font-family:'DM Sans',sans-serif;background:#f3f4f6;color:#1f2937;display:f
       Reports &amp; Analytics
     </a>
     <div style="height:1px;background:rgba(255,255,255,.07);margin:10px 0"></div>
-    <a href="{{ route('home') }}" class="sb-ni" style="color:rgba(255,120,120,.55)">
-      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Log Out
-    </a>
+    <form method="POST" action="{{ route('logout') }}" style="margin:0">
+      @csrf
+      <button type="submit" class="sb-ni" style="width:100%;background:none;border:none;cursor:pointer;color:rgba(255,120,120,.55);font-family:inherit;font-size:inherit;text-align:left">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Log Out
+      </button>
+    </form>
   </div>
 </aside>
 

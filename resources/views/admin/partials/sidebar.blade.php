@@ -1,7 +1,6 @@
 @php
     $sbPendingEvents   = \App\Models\StudentEventSubmission::where('stage','pending')->count();
-    $sbPendingActivity = \App\Models\ActivityLog::latest()->take(1)->count() ? \App\Models\ActivityLog::count() : 0;
-    $sbPendingBudget   = \App\Models\StudentEventBudget::count();
+    $sbPendingActivity = \App\Models\ActivityLog::count();
 @endphp
 <aside class="sb">
     <div class="sb-brand">
@@ -43,11 +42,6 @@
 
     <div class="sb-sec">
         <div class="sb-lbl">Submissions</div>
-        <a href="{{ route('admin.budget-requests') }}" class="ni {{ request()->routeIs('admin.budget-requests') ? 'active' : '' }}">
-            <svg class="ni-icon" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            Budget Requests
-            @if($sbPendingBudget > 0)<span class="nb amber">{{ $sbPendingBudget > 99 ? '99+' : $sbPendingBudget }}</span>@endif
-        </a>
         <a href="{{ route('admin.annual-reports') }}" class="ni {{ request()->routeIs('admin.annual-reports') ? 'active' : '' }}">
             <svg class="ni-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="16 13 12 17 8 13"/><line x1="12" y1="17" x2="12" y2="7"/></svg>
             Annual Reports
@@ -80,10 +74,13 @@
             <div class="av-name">{{ auth()->user()->name ?? 'Super Admin' }}</div>
             <div class="av-role">{{ auth()->user()->role ?? 'National Board' }}</div>
         </div>
-        <a href="{{ route('home') }}" title="Log out"
-           style="color:rgba(255,255,255,.3);flex-shrink:0;display:flex;align-items:center;transition:color .2s"
-           onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(255,255,255,.3)'">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </a>
+        <form method="POST" action="{{ route('logout') }}" style="flex-shrink:0">
+            @csrf
+            <button type="submit" title="Log out"
+                style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);display:flex;align-items:center;padding:0;transition:color .2s"
+                onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(255,255,255,.3)'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+        </form>
     </div>
 </aside>
