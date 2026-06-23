@@ -68,6 +68,9 @@
 .ps-lbl.active{color:var(--gold)}
 .ps-lbl.rejected{color:var(--red)}
 .pipeline-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.audit-link{display:inline-flex;align-items:center;gap:7px;margin-top:14px;font-size:11px;font-weight:600;color:var(--grey);text-decoration:none;transition:color .15s}
+.audit-link:hover{color:var(--navy)}
+.audit-link svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8}
 .step-label{font-size:11px;font-weight:600;color:var(--navy);margin-right:auto}
 .comment-area{margin-top:10px}
 .comment-area textarea{width:100%;border:1px solid var(--light);background:var(--off);padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--navy);outline:none;border-radius:3px;min-height:70px;resize:vertical}
@@ -76,6 +79,17 @@
 .empty{text-align:center;padding:48px 20px;color:var(--grey)}
 .empty svg{width:40px;height:40px;stroke:var(--light);fill:none;stroke-width:1.5;margin:0 auto 12px;display:block}
 .empty p{font-size:13px}
+/* Chapter-facing feedback modal */
+.fb-overlay{position:fixed;inset:0;background:rgba(0,16,48,.55);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.fb-overlay.open{display:flex}
+.fb-box{background:#fff;width:100%;max-width:460px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.fb-box h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--navy);margin:0 0 6px}
+.fb-box p{font-size:12px;color:var(--grey);line-height:1.5;margin:0 0 14px}
+.fb-box textarea{width:100%;min-height:110px;border:1px solid var(--light);padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--navy);outline:none;resize:vertical}
+.fb-box textarea:focus{border-color:var(--navy)}
+.fb-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.fb-cancel{padding:9px 18px;background:none;border:1px solid var(--light);font-size:12px;font-weight:700;color:var(--grey);cursor:pointer;font-family:'DM Sans',sans-serif}
+.fb-send{padding:9px 18px;background:var(--navy-dark,#001f45);color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
 </style>
 @endsection
 
@@ -141,6 +155,19 @@
     </div>
 </div>
 
+{{-- Chapter-facing feedback modal (Reinstate / Reject) --}}
+<div class="fb-overlay" id="fbModal">
+  <div class="fb-box">
+    <h3 id="fbTitle">Send back for revision</h3>
+    <p id="fbDesc">Describe the corrections the chapter must make.</p>
+    <textarea id="fbText" placeholder="Corrections to be made…"></textarea>
+    <div class="fb-actions">
+      <button type="button" class="fb-cancel" onclick="closeFb()">Cancel</button>
+      <button type="button" class="fb-send" id="fbConfirm" onclick="confirmFb()">Send Back</button>
+    </div>
+  </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -149,12 +176,13 @@ const SUBMISSIONS = @json($submissions);
 const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
 const STAGES = [
-    { key:'pending', label:'Submitted',   icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
-    { key:'ppw',     label:'PPW Screen',  icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
-    { key:'approved',label:'Approved',    icon:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
+    { key:'pending',  label:'Submitted',  icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
+    { key:'ppw',      label:'Doc Review', icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
+    { key:'approved', label:'Approved',   icon:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
+    { key:'published',label:'Published',  icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' },
 ];
-const STAGE_BADGE  = {pending:'b-pending',ppw:'b-ppw',approved:'b-approved',rejected:'b-rejected'};
-const STAGE_LABEL  = {pending:'Pending Review',ppw:'PPW Screening',approved:'Approved',rejected:'Rejected'};
+const STAGE_BADGE  = {pending:'b-pending',ppw:'b-ppw',approved:'b-approved',published:'b-approved',rejected:'b-rejected'};
+const STAGE_LABEL  = {pending:'Submitted',ppw:'Doc Review',approved:'Approved',published:'Published',rejected:'Rejected'};
 const CAT_BADGE    = {hackathon:'b-hackathon',career:'b-career',webinar:'b-webinar',workshop:'b-workshop',competition:'b-competition'};
 
 let activeTab = 'all';
@@ -172,7 +200,7 @@ function applyFilters(){
     const stageFilter = document.getElementById('filterStage').value;
     const search      = document.getElementById('searchInput').value.toLowerCase();
     const filtered = SUBMISSIONS.filter(s => {
-        const tabMatch   = activeTab==='all' || s.stage===activeTab;
+        const tabMatch   = activeTab==='all' || s.stage===activeTab || (activeTab==='approved' && s.stage==='published');
         const uniMatch   = !uniFilter || s.university===uniFilter;
         const stageMatch = !stageFilter || s.stage===stageFilter;
         const srchMatch  = !search || s.title.toLowerCase().includes(search) || s.university_full.toLowerCase().includes(search) || s.submitted_by.toLowerCase().includes(search);
@@ -198,10 +226,11 @@ function buildCard(s){
         return `<div class="ps"><div class="ps-dot ${cls}"><svg viewBox="0 0 24 24">${st.icon}</svg></div><div class="ps-lbl ${cls}">${st.label}</div></div>`;
     }).join('');
     let actionHtml='';
-    if(s.stage==='pending') actionHtml=`<span class="step-label">Begin PPW screening?</span><button class="btn-approve" onclick="advance(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Proceed to PPW</button><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
-    else if(s.stage==='ppw') actionHtml=`<span class="step-label">PPW review complete?</span><button class="btn-approve" onclick="advance(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Approve &amp; Fully Approve</button><button class="btn-ghost" onclick="requestRevision(${s.id},event)">Request Revision</button><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
-    else if(s.stage==='approved') actionHtml=`<span class="step-label" style="color:var(--green)">✓ Fully approved — no further action required.</span>`;
-    else if(s.stage==='rejected') actionHtml=`<span class="step-label" style="color:var(--red)">✕ Rejected</span><button class="btn-approve" onclick="reinstate(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.88"/></svg>Reinstate</button>`;
+    if(s.stage==='pending') actionHtml=`<span class="step-label">Review submission</span><button class="btn-approve" onclick="advance(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Proceed to PPW</button><button class="btn-ghost" onclick="sendBack(${s.id},event)">Reinstate (Send Back)</button><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
+    else if(s.stage==='ppw') actionHtml=`<span class="step-label">PPW review complete?</span><button class="btn-approve" onclick="advance(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Approve &amp; Fully Approve</button><button class="btn-ghost" onclick="sendBack(${s.id},event)">Reinstate (Send Back)</button><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
+    else if(s.stage==='approved') actionHtml=`<span class="step-label" style="color:var(--green)">✓ Approved — awaiting chapter publish.</span><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
+    else if(s.stage==='published') actionHtml=`<span class="step-label" style="color:var(--green)">✓ Approved &amp; published by chapter.</span><button class="btn-reject" onclick="reject(${s.id},event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject</button>`;
+    else if(s.stage==='rejected') actionHtml=`<span class="step-label" style="color:var(--red)">✕ Rejected</span><button class="btn-approve" onclick="reinstate(${s.id},event)"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.88"/></svg>Reopen to Pending</button>`;
 
     return `
     <div class="rcard" id="rcard-${s.id}">
@@ -228,19 +257,20 @@ function buildCard(s){
             <div class="doc-box">
               <div class="doc-row">
                 <div class="doc-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                <div style="flex:1"><div class="doc-name">${s.ppw_filename||'PPW Document'}</div><div class="doc-sub">${s.ppw_size||'—'} · PDF</div></div>
-                <button class="doc-dl" onclick="viewDoc(${s.id},'ppw',event)"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>View</button>
+                <div style="flex:1"><div class="doc-name">${s.ppw_filename||'No PPW uploaded'}</div><div class="doc-sub">${s.ppw_url?(s.ppw_size?s.ppw_size+' · ':'')+'Document':'—'}</div></div>
+                ${s.ppw_url?`<a class="doc-dl" href="${s.ppw_url}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>View</a>`:''}
               </div>
             </div>
             <div class="rc-title" style="margin-top:14px"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Poster / Artwork</div>
             <div class="poster-box">
               <div class="poster-thumb">
-                <div class="poster-thumb-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
-                <div class="poster-thumb-lbl">${s.poster_filename||'Event Poster'}</div>
+                ${s.poster_url
+                  ? `<img src="${s.poster_url}" alt="Event poster" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>`
+                  : `<div class="poster-thumb-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="poster-thumb-lbl">No poster uploaded</div>`}
               </div>
-              <div class="poster-actions">
-                <button class="doc-dl" style="width:100%;justify-content:center" onclick="viewDoc(${s.id},'poster',event)"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>View Poster</button>
-              </div>
+              ${s.poster_url?`<div class="poster-actions">
+                <a class="doc-dl" style="width:100%;justify-content:center" href="${s.poster_url}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>View Poster</a>
+              </div>`:''}
             </div>
           </div>
           <div class="review-col">
@@ -260,6 +290,7 @@ function buildCard(s){
               <div><span style="color:var(--grey);min-width:80px;display:inline-block">University</span><span style="font-weight:600;color:var(--navy)">${s.university_full}</span></div>
               <div><span style="color:var(--grey);min-width:80px;display:inline-block">Submitted</span><span style="font-weight:600;color:var(--navy)">${s.submitted_date}</span></div>
               <div><span style="color:var(--grey);min-width:80px;display:inline-block">By</span><span style="font-weight:600;color:var(--navy)">${s.submitted_by}</span></div>
+              ${(s.tags&&s.tags.length)?`<div style="margin-top:6px"><span style="color:var(--grey);min-width:80px;display:inline-block;vertical-align:top">Tags</span><span>${s.tags.map(t=>`<span style="display:inline-block;background:#fff;border:1px solid var(--light);font-size:9px;font-weight:600;color:var(--navy);padding:2px 7px;margin:0 4px 4px 0">${t}</span>`).join('')}</span></div>`:''}
             </div>
           </div>
         </div>
@@ -267,6 +298,10 @@ function buildCard(s){
           <div class="pipeline-title">Approval Pipeline</div>
           <div class="pipeline-steps">${pipelineSteps}</div>
           <div class="pipeline-actions">${actionHtml}</div>
+          <a class="audit-link" href="/dashboard/admin/activity?subject_type=App%5CModels%5CEvent&subject_id=${s.id}">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            View audit trail
+          </a>
         </div>
       </div>
     </div>`;
@@ -284,60 +319,85 @@ function switchTab(btn){
     applyFilters();
 }
 
-async function apiStage(id, action, notes=''){
+async function apiStage(id, action, notes='', feedback=''){
     const res = await fetch(`/dashboard/admin/student-events/${id}/stage`, {
         method: 'POST',
-        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF},
-        body: JSON.stringify({action, admin_notes: notes})
+        headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF},
+        body: JSON.stringify({action, admin_notes: notes, feedback})
     });
-    return res.json();
+    let data={}; try{ data = await res.json(); }catch(_){}
+    return {ok: res.ok, data};
+}
+// Admin Remarks textarea — INTERNAL only, sent as admin_notes (never shown to the chapter).
+function adminNotes(id){ return (document.getElementById('comment-'+id)?.value||'').trim(); }
+function recountStats(){
+    const c = {pending:0, ppw:0, approved:0};
+    SUBMISSIONS.forEach(s => {
+        if(s.stage === 'published') c.approved++;            // published events are still approved
+        else if(c[s.stage] !== undefined) c[s.stage]++;
+    });
+    document.getElementById('stat-pending').textContent  = c.pending;
+    document.getElementById('stat-ppw').textContent      = c.ppw;
+    document.getElementById('stat-approved').textContent = c.approved;
+}
+function afterAction(r, okMsg, type){
+    if(!r.ok){ showToast(r.data.message || 'Action failed — please try again.','danger'); return false; }
+    showToast(okMsg, type||'');
+    // Update the card in place from the server's fresh data — no full-page reload (keeps scroll position).
+    if(r.data && r.data.submission){
+        const sub = r.data.submission;
+        const idx = SUBMISSIONS.findIndex(x => x.id === sub.id);
+        if(idx !== -1) SUBMISSIONS[idx] = sub; else SUBMISSIONS.push(sub);
+        openCards.add(sub.id);   // keep the card expanded so the new stage is visible
+        applyFilters();
+        recountStats();
+    } else {
+        setTimeout(()=>location.reload(), 600);
+    }
+    return true;
 }
 
 async function advance(id, e){
     e.stopPropagation();
     const s = SUBMISSIONS.find(x=>x.id===id);
-    if(!s) return;
-    const notes = document.getElementById('comment-'+id)?.value||'';
-    const order = ['pending','ppw','approved'];
-    const idx = order.indexOf(s.stage);
-    if(idx < order.length-1){
-        s.stage_history.push(s.stage);
-        s.stage = order[idx+1];
-        s.admin_notes = notes;
-    }
-    await apiStage(id, 'advance', notes);
-    const msgs = {ppw:'Moved to PPW Screening',approved:'Event fully approved!'};
-    showToast(msgs[s.stage]||'Stage updated', s.stage==='approved'?'success':'');
-    updateStats(); applyFilters();
+    const r = await apiStage(id, 'advance', adminNotes(id));
+    afterAction(r, s && s.stage==='ppw' ? 'Event fully approved!' : 'Advanced to PPW screening', 'success');
 }
 
-async function reject(id, e){
-    e.stopPropagation();
-    const s = SUBMISSIONS.find(x=>x.id===id);
-    if(!s) return;
-    const notes = document.getElementById('comment-'+id)?.value||'';
-    s.stage_history.push(s.stage);
-    s.stage = 'rejected'; s.admin_notes = notes;
-    await apiStage(id, 'reject', notes);
-    showToast('Submission rejected','danger');
-    updateStats(); applyFilters();
-}
-
+// Reopen an already-rejected event back to Pending review.
 async function reinstate(id, e){
     e.stopPropagation();
-    const s = SUBMISSIONS.find(x=>x.id===id);
-    if(!s) return;
-    s.stage='pending'; s.stage_history=[];
-    await apiStage(id, 'reinstate');
-    showToast('Submission reinstated to Pending','warn');
-    updateStats(); applyFilters();
+    const r = await apiStage(id, 'reinstate', adminNotes(id));
+    afterAction(r, 'Reopened to Pending', 'warn');
 }
 
-async function requestRevision(id, e){
-    e.stopPropagation();
-    const notes = document.getElementById('comment-'+id)?.value||'';
-    await apiStage(id, 'revision', notes);
-    showToast('Revision request sent to student chapter','warn');
+// Reject and Reinstate(send-back) open the chapter-facing comment modal.
+function reject(id, e){ if(e) e.stopPropagation(); openFb(id, 'reject'); }
+function sendBack(id, e){ if(e) e.stopPropagation(); openFb(id, 'revision'); }
+
+// ── Chapter-facing feedback modal ──
+let fbCtx = {id:null, action:null};
+function openFb(id, action){
+    fbCtx = {id, action};
+    const isRev = action==='revision';
+    document.getElementById('fbTitle').textContent = isRev ? 'Reinstate — send back for revision' : 'Reject submission';
+    document.getElementById('fbDesc').textContent  = isRev
+        ? 'Describe the corrections the chapter must make. This is sent to the chapter and recorded in the audit trail.'
+        : 'Optional: tell the chapter why it was rejected. Sent to the chapter and recorded.';
+    const t = document.getElementById('fbText');
+    t.value=''; t.placeholder = isRev ? 'Corrections to be made…' : 'Reason for rejection (optional)…';
+    document.getElementById('fbConfirm').textContent = isRev ? 'Send Back' : 'Reject';
+    document.getElementById('fbModal').classList.add('open');
+    setTimeout(()=>t.focus(), 50);
+}
+function closeFb(){ document.getElementById('fbModal').classList.remove('open'); }
+async function confirmFb(){
+    const {id, action} = fbCtx;
+    const feedback = document.getElementById('fbText').value.trim();
+    if(action==='revision' && !feedback){ showToast('Write the corrections before sending back.','danger'); return; }
+    const r = await apiStage(id, action, adminNotes(id), feedback);
+    closeFb();
+    afterAction(r, action==='revision' ? 'Sent back to chapter for revision' : 'Submission rejected', action==='revision'?'warn':'danger');
 }
 
 function viewDoc(id, type, e){

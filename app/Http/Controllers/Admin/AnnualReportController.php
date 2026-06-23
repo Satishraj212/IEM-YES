@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\AnnualReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class AnnualReportController extends Controller
 {
@@ -32,6 +33,42 @@ class AnnualReportController extends Controller
         ]);
     }
 
+    /**
+     * Render a submitted report's analytics snapshot (print-friendly).
+     */
+    public function view(AnnualReport $annualReport)
+    {
+        $data = $annualReport->report_data ?: ['meta' => []];
+        $data['meta'] = array_merge($data['meta'] ?? [], [
+            'branch'        => $data['meta']['branch'] ?? $annualReport->branch?->name,
+            'report_year'   => $annualReport->year,
+            'report_status' => $annualReport->status,
+        ]);
+
+        return view('student-section.report-document', [
+            'd'    => $data,
+            'back' => route('admin.annual-reports'),
+        ]);
+    }
+
+    public function download(AnnualReport $annualReport)
+    {
+        abort_unless(Storage::disk('public')->exists($annualReport->file_path), 404, 'File not found.');
+
+        $mime = match (pathinfo($annualReport->file_path, PATHINFO_EXTENSION)) {
+            'pdf'  => 'application/pdf',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            default => 'application/octet-stream',
+        };
+
+        return Storage::disk('public')->download(
+            $annualReport->file_path,
+            $annualReport->file_name ?? basename($annualReport->file_path),
+            ['Content-Type' => $mime]
+        );
+    }
+
     public function approve(Request $request, AnnualReport $annualReport)
     {
         $annualReport->update([
@@ -43,7 +80,7 @@ class AnnualReportController extends Controller
 
         ActivityLog::record(
             $annualReport->branch_id,
-            'hq_approved',
+            'report_approved',
             "Annual report approved for {$annualReport->branch->name}",
             Auth::id(),
             $annualReport
@@ -63,7 +100,7 @@ class AnnualReportController extends Controller
 
         ActivityLog::record(
             $annualReport->branch_id,
-            'hq_approved',
+            'report_rejected',
             "Annual report rejected for {$annualReport->branch->name}",
             Auth::id(),
             $annualReport

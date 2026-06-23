@@ -12,16 +12,28 @@ class AnnualReport extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'branch_id', 'submitted_by', 'year', 'title',
+        'branch_id', 'submitted_by', 'year', 'title', 'report_data', 'submitted_at',
         'file_path', 'file_name', 'file_size',
         'status', 'notes', 'reviewed_by', 'reviewed_at',
     ];
 
     protected $casts = [
-        'year'        => 'integer',
-        'file_size'   => 'integer',
-        'reviewed_at' => 'datetime',
+        'year'         => 'integer',
+        'file_size'    => 'integer',
+        'report_data'  => 'array',
+        'submitted_at' => 'datetime',
+        'reviewed_at'  => 'datetime',
     ];
+
+    /** Standardised pipeline: Submitted → Under Review → Approved / Returned. */
+    public function getStageAttribute(): string
+    {
+        return match ($this->status) {
+            'approved' => 'approved',
+            'rejected' => 'returned',
+            default    => 'review',   // pending == "Under Review"
+        };
+    }
 
     public function branch(): BelongsTo
     {

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AwardCategory;
 use App\Models\AwardNomination;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+
 
 class AwardController extends Controller
 {
@@ -49,6 +49,12 @@ class AwardController extends Controller
         AwardCategory::create($validated);
 
         return back()->with('success', 'Award category created.');
+    }
+
+    public function destroy(AwardCategory $awardCategory)
+    {
+        $awardCategory->delete();
+        return back()->with('success', 'Award category deleted.');
     }
 
     public function shortlist(AwardNomination $nomination)

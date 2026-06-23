@@ -267,9 +267,9 @@ nav.main-nav{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:3p
     <h1 class="hero-title">Student Chapter <em>Awards</em></h1>
     <p class="hero-sub">Recognising the outstanding contributions of YES student chapters across Malaysian universities. Awards are announced annually at the National Student Summit (NATSUM).</p>
     <div class="hero-stats">
-        <div class="hs"><div class="hs-val">38</div><div class="hs-lbl">Universities</div></div>
-        <div class="hs"><div class="hs-val">6</div><div class="hs-lbl">Award Categories</div></div>
-        <div class="hs"><div class="hs-val">2025</div><div class="hs-lbl">Current Cycle</div></div>
+        <div class="hs"><div class="hs-val">{{ $categories->count() }}</div><div class="hs-lbl">Award Categories</div></div>
+        <div class="hs"><div class="hs-val">{{ $categories->flatMap->nominations->count() }}</div><div class="hs-lbl">Total Nominees</div></div>
+        <div class="hs"><div class="hs-val">{{ $categories->first()?->cycle_year ?? now()->year }}</div><div class="hs-lbl">Current Cycle</div></div>
         <div class="hs"><div class="hs-val">NATSUM</div><div class="hs-lbl">Announcement</div></div>
     </div>
 </div>
@@ -507,26 +507,18 @@ nav.main-nav{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:3p
         </div>
 
         <div class="winners-grid reveal">
-            @foreach([
-                ['2024','Best Chapter Award','YES UTM Kuala Lumpur','Universiti Teknologi Malaysia, KL','1,180 pts'],
-                ['2024','Best Event Award','YES UTP Perak','Universiti Teknologi PETRONAS','920 pts'],
-                ['2023','Best Chapter Award','YES USM Penang','Universiti Sains Malaysia','1,045 pts'],
-                ['2023','SDG Champion','YES UNIMAS Sarawak','Universiti Malaysia Sarawak','880 pts'],
-                ['2022','Best Chapter Award','YES UTM Johor','Universiti Teknologi Malaysia, Skudai','995 pts'],
-                ['2022','Most Active Chapter','YES UiTM Shah Alam','Universiti Teknologi MARA','840 pts'],
-                ['2021','Best Chapter Award','YES UM Kuala Lumpur','Universiti Malaya','960 pts'],
-                ['2021','Rising Chapter Award','YES UNIKL','Universiti Kuala Lumpur','670 pts'],
-            ] as [$year,$award,$chapter,$uni,$pts])
+            @forelse ($winners as $winner)
             <div class="winner-card reveal">
-                <div class="winner-year">{{ $year }}</div>
+                <div class="winner-year">{{ $winner->created_at?->year ?? $winner->category?->cycle_year ?? now()->year }}</div>
                 <div class="winner-content">
-                    <div class="winner-award">{{ $award }}</div>
-                    <div class="winner-chapter">{{ $chapter }}</div>
-                    <div class="winner-uni">{{ $uni }}</div>
-                    <div class="winner-pts">{{ $pts }}</div>
+                    <div class="winner-award">{{ $winner->category?->name ?? 'Award' }}</div>
+                    <div class="winner-chapter">{{ $winner->display_name }}</div>
+                    <div class="winner-uni">{{ $winner->display_branch }}</div>
                 </div>
             </div>
-            @endforeach
+            @empty
+            <p style="grid-column:span 2;color:var(--grey);font-size:14px;padding:20px 0">Past winner records will appear here once the first award cycle concludes.</p>
+            @endforelse
         </div>
     </div>
 </section>

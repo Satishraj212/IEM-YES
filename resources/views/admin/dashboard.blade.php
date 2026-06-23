@@ -2,6 +2,24 @@
 
 @section('title', 'Dashboard')
 
+@section('styles')
+<style>
+.oc-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-shrink:0;white-space:nowrap}
+.oc-btn-view{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--navy-dark);color:#fff;text-decoration:none;transition:background .15s}
+.oc-btn-view:hover{background:var(--navy-mid)}
+.oc-btn-view svg{width:11px;height:11px;stroke:#fff;fill:none;stroke-width:2}
+.oc-btn-audit{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:#fff;color:var(--grey);border:1px solid var(--light);text-decoration:none;transition:all .15s}
+.oc-btn-audit:hover{border-color:var(--navy);color:var(--navy);background:#f0f4ff}
+.oc-btn-audit svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2}
+.oc-btn-approve{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;cursor:pointer;transition:all .15s}
+.oc-btn-approve:hover{background:#16a34a;color:#fff;border-color:#16a34a}
+.oc-btn-approve svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5}
+.oc-btn-reject{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--red-l);color:var(--red);border:1px solid rgba(192,57,43,.2);cursor:pointer;transition:all .15s}
+.oc-btn-reject:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.oc-btn-reject svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5}
+</style>
+@endsection
+
 @section('topbar-actions')
 <a href="{{ route('admin.official-events') }}" class="btn-primary">
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -11,8 +29,8 @@
 
 @section('content')
 
-{{-- ── QUICK NAV CARDS ── --}}
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px">
+{{-- ── QUICK NAV CARDS (3) ── --}}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px">
     <a href="{{ route('admin.official-events') }}" style="text-decoration:none">
         <div class="sc">
             <div class="sc-bar" style="background:var(--navy)"></div>
@@ -29,25 +47,17 @@
             <div class="sc-sub">awaiting review</div>
         </div>
     </a>
-    <a href="{{ route('admin.flagship-events') }}" style="text-decoration:none">
+    <a href="{{ route('admin.budget-requests') }}" style="text-decoration:none">
         <div class="sc">
             <div class="sc-bar" style="background:var(--amber)"></div>
-            <div class="sc-lbl">Flagship Events</div>
-            <div class="sc-val">{{ $counts['flagship'] }}</div>
-            <div class="sc-sub">active this year</div>
-        </div>
-    </a>
-    <a href="{{ route('admin.activity') }}" style="text-decoration:none">
-        <div class="sc">
-            <div class="sc-bar" style="background:var(--red)"></div>
-            <div class="sc-lbl">Activity Feed</div>
-            <div class="sc-val">8</div>
-            <div class="sc-sub">unread events</div>
+            <div class="sc-lbl">Budget Requests</div>
+            <div class="sc-val">{{ $counts['budget_pending'] }}</div>
+            <div class="sc-sub">pending review</div>
         </div>
     </a>
 </div>
 
-{{-- ── ROW 1: Recent Official Events + Activity Feed ── --}}
+{{-- ── ROW 1: Recent Official Events + Budget Stats ── --}}
 <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px">
 
     {{-- Recent Official Events --}}
@@ -59,17 +69,14 @@
         <div class="pb" style="padding:0 20px">
             <table class="etbl" style="margin-top:4px">
                 <thead><tr>
-                    <th style="width:40%">Event</th>
+                    <th style="width:44%">Event</th>
                     <th>Category</th>
                     <th>Date</th>
-                    <th>Seats</th>
                     <th>Status</th>
                 </tr></thead>
                 <tbody>
                 @forelse($recentEvents as $event)
                     @php
-                        $pct        = $event->total_seats ? round($event->registered_count / $event->total_seats * 100) : 0;
-                        $fillClass  = $pct >= 100 ? 'full' : ($pct >= 75 ? 'warn' : '');
                         $statusBadge = ['open' => 'b-open', 'upcoming' => 'b-upcoming', 'past' => 'b-past'][$event->status] ?? 'b-past';
                         $catClasses  = ['Board Meeting'=>'b-board','Retreat'=>'b-retreat','Summit'=>'b-summit','Forum'=>'b-forum','Gala / Dinner'=>'b-gala','Review'=>'b-review'];
                         $catBadge    = $catClasses[$event->category] ?? 'b-board';
@@ -81,49 +88,77 @@
                         </td>
                         <td><span class="badge {{ $catBadge }}">{{ $event->category }}</span></td>
                         <td class="et-sm">{{ $event->start_date->format('j M Y') }}</td>
-                        <td>
-                            @if($event->total_seats)
-                                <div style="font-size:11px;font-weight:600;color:var(--navy)">{{ $event->registered_count }} / {{ $event->total_seats }}</div>
-                                <div class="sbar"><div class="sfill {{ $fillClass }}" style="width:{{ $pct }}%"></div></div>
-                            @else
-                                <div style="font-size:11px;color:var(--grey)">—</div>
-                            @endif
-                        </td>
                         <td><span class="badge {{ $statusBadge }}">{{ ucfirst($event->status) }}</span></td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" style="text-align:center;color:var(--grey);padding:24px 0;font-size:12px">No events yet.</td></tr>
+                    <tr><td colspan="4" style="text-align:center;color:var(--grey);padding:24px 0;font-size:12px">No events yet.</td></tr>
                 @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
-    {{-- Activity Feed preview --}}
+    {{-- Incoming Org Charts --}}
     <div class="panel">
         <div class="ph">
-            <div class="pt">Activity <em>Feed</em></div>
-            <a href="{{ route('admin.activity') }}" class="pa">View All →</a>
+            <div class="pt">Incoming <em>Org Charts</em></div>
+            <a href="{{ route('admin.branches') }}" class="pa">Manage All →</a>
         </div>
-        <div class="pb">
-            @forelse($recentActivity as $log)
-                <div class="act-item">
-                    <div class="act-dot" style="background:{{ $log->dot_colour }}">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>
-                    </div>
-                    <div>
-                        <div class="act-txt">{{ $log->title }}</div>
-                        <span class="act-time">{{ $log->created_at->diffForHumans() }}</span>
-                    </div>
+        <div class="pb" style="padding:0 20px">
+            @if($pendingOrgCharts->isEmpty())
+                <div style="text-align:center;color:var(--grey);font-size:12px;padding:28px 20px">
+                    <svg viewBox="0 0 24 24" style="width:28px;height:28px;stroke:var(--light);fill:none;stroke-width:1.5;display:block;margin:0 auto 8px"><polyline points="20 6 9 17 4 12"/></svg>
+                    No pending submissions.
                 </div>
-            @empty
-                <div style="text-align:center;color:var(--grey);font-size:12px;padding:20px 0">No recent activity.</div>
-            @endforelse
+            @else
+                <table class="etbl" style="margin-top:4px">
+                    <thead><tr>
+                        <th>Branch</th>
+                        <th style="width:64px">Year</th>
+                        <th style="width:140px;text-align:right">Review</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach($pendingOrgCharts as $chart)
+                        <tr id="ocrow-{{ $chart->id }}">
+                            <td>
+                                <div class="et-name">{{ $chart->branch?->name ?? '—' }}</div>
+                                <div class="et-sub">submitted {{ $chart->created_at->format('j M') }}</div>
+                            </td>
+                            <td class="et-sm">{{ $chart->academic_year }}</td>
+                            <td style="white-space:nowrap">
+                                <div class="oc-actions">
+                                    <a href="{{ $chart->url }}" target="_blank" rel="noopener" class="oc-btn-view" title="View chart">
+                                        <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </a>
+                                    @if($chart->branch_id)
+                                    <a href="{{ route('admin.activity', ['branch' => $chart->branch_id]) }}" class="oc-btn-audit" title="View audit trail">
+                                        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                    </a>
+                                    @endif
+                                    <button class="oc-btn-approve" onclick="quickOcReview({{ $chart->id }},'approved')" title="Approve">
+                                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="oc-btn-reject" onclick="quickOcReview({{ $chart->id }},'rejected')" title="Reject">
+                                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                @if($counts['org_charts_pending'] > $pendingOrgCharts->count())
+                    <div style="text-align:center;padding:10px;font-size:11px;color:var(--grey);border-top:1px solid var(--light)">
+                        +{{ $counts['org_charts_pending'] - $pendingOrgCharts->count() }} more —
+                        <a href="{{ route('admin.branches') }}" style="color:var(--navy);font-weight:600">view all</a>
+                    </div>
+                @endif
+            @endif
         </div>
     </div>
 </div>
 
-{{-- ── ROW 2: Student Submissions preview + Flagship Events ── --}}
+{{-- ── ROW 2: Student Submissions + Recent Budget Requests ── --}}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
 
     {{-- Student Submissions --}}
@@ -151,6 +186,9 @@
                         <td>
                             <div class="et-name">{{ Str::limit($sub->title, 32) }}</div>
                             <div class="et-sub">{{ $sub->university }}</div>
+                            @if($sub->university_full && $sub->university_full !== $sub->university)
+                            <div class="et-sub" style="font-size:10px;color:var(--grey)">{{ Str::limit($sub->university_full, 32) }}</div>
+                            @endif
                         </td>
                         <td><span class="badge {{ $catBadges[$sub->category] ?? 'b-workshop' }}">{{ $sub->category }}</span></td>
                         <td><span class="badge {{ $stageBadge[$sub->stage] ?? 'b-pending' }}">{{ $stageLabel[$sub->stage] ?? $sub->stage }}</span></td>
@@ -164,125 +202,73 @@
         </div>
     </div>
 
-    {{-- Flagship Events --}}
+    {{-- Recent Budget Requests --}}
     <div class="panel">
         <div class="ph">
-            <div class="pt">Flagship <em>Events</em></div>
-            <a href="{{ route('admin.flagship-events') }}" class="pa">Manage →</a>
+            <div class="pt">Budget <em>Requests</em></div>
+            <a href="{{ route('admin.budget-requests') }}" class="pa">Review All →</a>
         </div>
-        <div class="pb">
-            @forelse($flagshipEvents as $flagship)
+        <div class="pb" style="padding:0 20px">
             @php
-                $fStatusBadge = ['planning'=>'b-upcoming','upcoming'=>'b-upcoming','open'=>'b-open','past'=>'b-past'][$flagship->status] ?? 'b-upcoming';
-                $accentColor  = $loop->first ? 'var(--gold)' : 'var(--navy)';
+                $budgetStatusBadge  = ['pending'=>'b-pending','approved'=>'b-approved','rejected'=>'b-rejected'];
+                $budgetStatusLabel  = ['pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected'];
             @endphp
-            <div style="padding:12px 0;border-bottom:1px solid var(--light);{{ $loop->last ? 'border-bottom:none' : '' }}">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
-                    <div style="font-size:13px;font-weight:700;color:var(--navy)">
-                        <span style="color:{{ $accentColor }}">{{ $flagship->short_name }}</span>
-                        {{ $flagship->year }}
-                    </div>
-                    <span class="badge {{ $fStatusBadge }}">{{ ucfirst($flagship->status) }}</span>
-                </div>
-                <div style="font-size:11px;color:var(--grey);line-height:1.7">
-                    {{ $flagship->full_name }}<br>
-                    @if($flagship->event_date)
-                        <span style="font-weight:600;color:var(--navy)">{{ $flagship->event_date }}</span> ·
-                    @endif
-                    {{ number_format($flagship->expected_delegates) }} delegates expected
-                </div>
-            </div>
-            @empty
-                <div style="text-align:center;color:var(--grey);font-size:12px;padding:24px 0">No flagship events yet.</div>
-            @endforelse
+            <table class="etbl" style="margin-top:4px">
+                <thead><tr>
+                    <th style="width:40%">Event</th>
+                    <th>Requested</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                </tr></thead>
+                <tbody>
+                @forelse($recentBudgets as $budget)
+                    <tr>
+                        <td>
+                            <div class="et-name">{{ Str::limit($budget->event?->title ?? '—', 28) }}</div>
+                            <div class="et-sub">{{ $budget->event?->branch?->identity_name ?? '—' }}</div>
+                            @if($budget->event?->branch?->identity_institution)
+                            <div class="et-sub" style="font-size:10px;color:var(--grey)">{{ Str::limit($budget->event->branch->identity_institution, 32) }}</div>
+                            @endif
+                        </td>
+                        <td class="et-sm" style="font-weight:600;color:var(--navy)">RM {{ number_format($budget->total_requested, 0) }}</td>
+                        <td><span class="badge {{ $budgetStatusBadge[$budget->status] ?? 'b-pending' }}">{{ $budgetStatusLabel[$budget->status] ?? $budget->status }}</span></td>
+                        <td class="et-sm">{{ $budget->created_at->format('j M') }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" style="text-align:center;color:var(--grey);padding:24px 0;font-size:12px">No budget requests yet.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-{{-- ── ROW 3: Top Branches + Settings quick links ── --}}
-<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px">
+@endsection
 
-    {{-- Top Branches --}}
-    <div class="panel">
-        <div class="ph">
-            <div class="pt">Top <em>Branches</em></div>
-            <a href="{{ route('admin.branches') }}" class="pa">All Branches →</a>
-        </div>
-        <div class="pb">
-            @php $maxMembers = $topBranches->max('member_count') ?: 1; @endphp
-            @foreach($topBranches as $branch)
-            <div class="br-item">
-                <div class="br-dot" style="background:{{ $branch->color ?? 'var(--navy)' }}"></div>
-                <div class="br-name">{{ $branch->name }}</div>
-                <div class="br-bar">
-                    <div class="br-fill" style="width:{{ round($branch->member_count / $maxMembers * 100) }}%;background:{{ $branch->color ?? 'var(--navy)' }}"></div>
-                </div>
-                <div class="br-cnt">{{ number_format($branch->member_count) }} members</div>
-            </div>
-            @endforeach
-        </div>
-    </div>
+@section('scripts')
+<script>
+const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
-    {{-- Quick Links --}}
-    <div class="panel">
-        <div class="ph">
-            <div class="pt">Quick <em>Links</em></div>
-        </div>
-        <div class="pb" style="padding:10px 20px">
-            @php
-                $links = [
-                    [
-                        'route' => 'admin.activity',
-                        'icon'  => '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-                        'label' => 'Activity Feed',
-                        'sub'   => '8 unread events',
-                        'color' => 'var(--red)',
-                    ],
-                    [
-                        'route' => 'admin.official-events',
-                        'icon'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>',
-                        'label' => 'Official Events',
-                        'sub'   => $counts['official'] . ' total · ' . $counts['official_open'] . ' open',
-                        'color' => 'var(--navy)',
-                    ],
-                    [
-                        'route' => 'admin.student-section-events-admin',
-                        'icon'  => '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
-                        'label' => 'Student Events',
-                        'sub'   => $counts['student_pending'] . ' pending review',
-                        'color' => 'var(--gold)',
-                    ],
-                    [
-                        'route' => 'admin.flagship-events',
-                        'icon'  => '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
-                        'label' => 'Flagship Events',
-                        'sub'   => $counts['flagship'] . ' active',
-                        'color' => 'var(--amber)',
-                    ],
-                    [
-                        'route' => 'admin.branches',
-                        'icon'  => '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
-                        'label' => 'State Branches',
-                        'sub'   => '21 institutions across 3 states',
-                        'color' => 'var(--green)',
-                    ],
-                ];
-            @endphp
-            @foreach($links as $link)
-            <a href="{{ route($link['route']) }}" style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--light);text-decoration:none;{{ $loop->last ? 'border-bottom:none' : '' }}">
-                <div style="width:30px;height:30px;border-radius:50%;background:{{ $link['color'] }};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                    <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:#fff;fill:none;stroke-width:1.8">{!! $link['icon'] !!}</svg>
-                </div>
-                <div>
-                    <div style="font-size:12px;font-weight:600;color:var(--navy)">{{ $link['label'] }}</div>
-                    <div style="font-size:10px;color:var(--grey);margin-top:1px">{{ $link['sub'] }}</div>
-                </div>
-                <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:var(--grey);fill:none;stroke-width:2;margin-left:auto;flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
-            </a>
-            @endforeach
-        </div>
-    </div>
-
-</div>
-
+async function quickOcReview(chartId, decision) {
+    const row = document.getElementById('ocrow-' + chartId);
+    if (!row) return;
+    try {
+        const r = await fetch(`/dashboard/admin/branches/org-charts/${chartId}/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: JSON.stringify({ decision, comment: '' }),
+        });
+        if (!r.ok) throw new Error();
+        row.style.transition = 'opacity .25s';
+        row.style.opacity = '0';
+        setTimeout(() => row.remove(), 260);
+        showToast(
+            decision === 'approved' ? 'Org chart approved' : 'Org chart rejected',
+            decision === 'approved' ? 'success' : 'danger'
+        );
+    } catch {
+        showToast('Could not save review — try from the Branches page.', 'danger');
+    }
+}
+</script>
 @endsection

@@ -4,35 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\OfficialEvent;
-use App\Models\StudentEventSubmission;
-use App\Models\FlagshipEvent;
-use App\Models\ActivityLog;
-use App\Models\Branch;
+use App\Models\StudentEvent;
+use App\Models\StudentEventBudget;
+use App\Models\BranchOrgChart;
 
 class AdminDashboardController extends Controller
 {
     public function index()
     {
-        // ── Stats ──────────────────────────────────────────────────────────────
-        $stats = [
-            'total_members'          => Branch::sum('member_count'),
-            'new_members_this_month' => Branch::sum('new_members_this_month'),
-            'events_this_year'       => OfficialEvent::whereYear('start_date', now()->year)->count(),
-            'events_vs_last_year'    => OfficialEvent::whereYear('start_date', now()->year)->count()
-                                      - OfficialEvent::whereYear('start_date', now()->year - 1)->count(),
-            'open_registrations'     => OfficialEvent::where('status', 'open')->sum('registered_count'),
-            'seats_left_today'       => OfficialEvent::where('status', 'open')
-                                            ->whereNotNull('total_seats')
-                                            ->selectRaw('SUM(total_seats - registered_count) as seats_left')
-                                            ->value('seats_left') ?? 0,
-        ];
-
         // ── Quick-nav counts ───────────────────────────────────────────────────
         $counts = [
-            'official'        => OfficialEvent::count(),
-            'official_open'   => OfficialEvent::where('status', 'open')->count(),
-            'student_pending' => StudentEventSubmission::whereIn('stage', ['pending', 'ppw', 'budget'])->count(),
-            'flagship'        => FlagshipEvent::whereIn('status', ['planning', 'upcoming', 'open'])->count(),
+            'official'           => OfficialEvent::count(),
+            'official_open'      => OfficialEvent::where('status', 'open')->count(),
+            'student_pending'    => StudentEvent::where('status', 'submitted')->count(),
+            'budget_pending'     => StudentEventBudget::where('status', 'pending')->count(),
+            'org_charts_pending' => BranchOrgChart::where('status', 'pending')->count(),
         ];
 
         // ── Recent official events ─────────────────────────────────────────────
@@ -41,52 +27,52 @@ class AdminDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // ── Student submissions (pending stages first) ─────────────────────────
-        $recentSubmissions = StudentEventSubmission::orderByRaw("
-                CASE stage
-                    WHEN 'pending'  THEN 1
-                    WHEN 'ppw'      THEN 2
-                    WHEN 'budget'   THEN 3
-                    WHEN 'approved' THEN 4
-                    WHEN 'rejected' THEN 5
-                    ELSE 6
-                END ASC")
+        // ── Student submissions (real events, in-review first) ─────────────────
+        $recentSubmissions = StudentEvent::with('branch')
+            ->whereIn('status', ['submitted', 'approved', 'rejected'])
+            ->orderByRaw("CASE status WHEN 'submitted' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END ASC")
+            ->orderByDesc('submitted_at')
             ->orderByDesc('created_at')
             ->limit(5)
+            ->get()
+            ->map(fn ($e) => (object) [
+                'title'           => $e->title,
+                'university'      => $e->branch?->identity_name ?? '—',
+                'university_full' => $e->branch?->identity_institution,
+                'category'        => strtolower(str_replace(' ', '', $e->category ?? '')),
+                'stage'           => match ($e->status) {
+                    'approved' => 'approved',
+                    'rejected' => 'rejected',
+                    default    => $e->track_doc_approved ? 'ppw' : 'pending',
+                },
+                'created_at'      => $e->submitted_at ?? $e->created_at,
+            ]);
+
+        // ── Recent budget requests (pending first) ─────────────────────────────
+        $recentBudgets = StudentEventBudget::with(['event.branch'])
+            ->orderByRaw("CASE status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'rejected' THEN 3 ELSE 4 END")
+            ->latest()
+            ->limit(6)
             ->get();
 
-        // ── Flagship events ────────────────────────────────────────────────────
-        $flagshipEvents = FlagshipEvent::orderByRaw("
-                CASE status
-                    WHEN 'open'     THEN 1
-                    WHEN 'upcoming' THEN 2
-                    WHEN 'planning' THEN 3
-                    WHEN 'past'     THEN 4
-                    ELSE 5
-                END ASC")
-            ->orderByDesc('year')
-            ->limit(4)
+        // ── Pending org chart submissions ──────────────────────────────────────
+        $pendingOrgCharts = BranchOrgChart::where('status', 'pending')
+            ->with('branch')
+            ->oldest()
+            ->limit(8)
             ->get();
 
-        // ── Activity feed ──────────────────────────────────────────────────────
-        $recentActivity = ActivityLog::latest()->limit(5)->get();
-
-        // ── Top branches ───────────────────────────────────────────────────────
-        $topBranches = Branch::orderByDesc('member_count')->limit(3)->get();
-
-        // ── Page meta (consumed by $pageTitle in layout) ───────────────────────
+        // ── Page meta ─────────────────────────────────────────────────────────
         $pageTitle    = 'Dashboard';
         $pageSubtitle = 'Overview';
         $pageDesc     = 'YES IEM National Admin · ' . now()->format('j F Y');
 
         return view('admin.dashboard', compact(
-            'stats',
             'counts',
             'recentEvents',
             'recentSubmissions',
-            'flagshipEvents',
-            'recentActivity',
-            'topBranches',
+            'recentBudgets',
+            'pendingOrgCharts',
             'pageTitle',
             'pageSubtitle',
             'pageDesc',

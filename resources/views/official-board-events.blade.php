@@ -92,12 +92,20 @@ nav { position: sticky; top: 0; z-index: 1000; background: var(--white); border-
 .status-closed { background: #6b2222; color: #e6a8a8; }
 .status-full { background: #6b4f1a; color: #e6c87a; }
 .card-body { padding: 22px 22px 18px; flex: 1; display: flex; flex-direction: column; }
-.card-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+.card-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.card-meta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .card-date { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
 .card-location { font-size: 11px; color: var(--grey); display: flex; align-items: center; gap: 4px; }
 .card-location svg { width: 11px; height: 11px; stroke: var(--grey); fill: none; stroke-width: 2; }
-.card-body h3 { font-size: 17px; font-weight: 700; color: var(--navy); line-height: 1.3; margin-bottom: 10px; }
-.card-body p { font-size: 13px; color: var(--grey); line-height: 1.7; flex: 1; }
+.card-branch { font-size: 10px; color: var(--gold); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; background: rgba(200,168,75,0.1); padding: 2px 8px; border: 1px solid rgba(200,168,75,0.3); }
+.card-body h3 { font-size: 17px; font-weight: 700; color: var(--navy); line-height: 1.3; margin-bottom: 8px; }
+.card-desc { font-size: 13px; color: var(--grey); line-height: 1.7; flex: 1; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.card-tag { background: var(--offwhite); color: var(--navy); padding: 2px 8px; font-size: 10px; font-weight: 600; border: 1px solid var(--light-grey); }
+.card-contact { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--light-grey); font-size: 11px; color: var(--grey); }
+.card-contact svg { width: 11px; height: 11px; stroke: var(--grey); fill: none; stroke-width: 2; flex-shrink: 0; }
+.card-contact strong { color: var(--navy); }
+.card-contact .sep { color: var(--light-grey); }
 .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--light-grey); }
 .card-seats { font-size: 11px; color: var(--grey); }
 .card-seats strong { color: var(--navy); font-weight: 700; }
@@ -266,18 +274,27 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
       <p>Professionally curated events organised by the YES National Board — covering leadership forums, industry summits, annual general meetings, and strategic retreats for members nationwide.</p>
     </div>
     <div class="hero-stat">
-      <div class="big">12</div>
+      <div class="big">{{ $eventsThisYear ?? $events->count() }}</div>
       <div class="lbl">Events This Year</div>
     </div>
   </div>
 </div>
 
+@php $allCategories = $events->pluck('category')->unique()->filter()->sort()->values(); @endphp
 <div class="filter-bar">
   <div class="filter-tabs">
-    <button class="filter-tab active" onclick="filterEvents('all', this)">All Events</button>
-    <button class="filter-tab" onclick="filterEvents('closed', this)">Past</button>
+    <button class="filter-tab active" onclick="filterTimeline('present', this)">Present</button>
+    <button class="filter-tab" onclick="filterTimeline('past', this)">Past</button>
   </div>
   <div class="filter-right">
+    @if($allCategories->isNotEmpty())
+    <select class="sort-select" onchange="filterCategory(this.value)">
+      <option value="">All Categories</option>
+      @foreach($allCategories as $cat)
+        <option value="{{ strtolower(str_replace([' ','/'], '-', $cat)) }}">{{ $cat }}</option>
+      @endforeach
+    </select>
+    @endif
     <div class="search-box">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input type="text" id="searchInput" placeholder="Search events..." oninput="searchEvents(this.value)"/>
@@ -293,125 +310,103 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
 <div class="events-body">
   <div class="events-grid" id="eventsGrid">
 
-    <div class="event-card featured reveal" data-status="open" data-name="YES Annual General Meeting 2025" data-date="2025-03-15">
-      <div class="card-img">
-        <div class="card-img-inner bg-1"></div>
-        <div class="card-badge">Featured</div>
-        <div class="card-status status-open">Open</div>
-      </div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="card-date">15 March 2025</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Grand Ballroom, KL Convention Centre</span>
-        </div>
-        <h3>YES Annual General Meeting 2025</h3>
-        <p>The AGM brings together the full national board, state chapter representatives, and senior members to review the year's progress, present financial accounts, elect new board members, and chart the strategic direction for the coming year. A landmark occasion for every YES member.</p>
-        <div class="card-footer">
-          <span class="card-seats">Seats: <strong>48 / 200</strong> remaining</span>
-          <a href="#" class="card-cta">Register Now →</a>
-        </div>
-      </div>
-    </div>
+    @forelse ($events as $event)
+    @php
+      $featured    = $loop->first;
+      $statusKey   = $event->effective_status === 'past' ? 'closed' : $event->effective_status;
+      $statusLabel = match($event->effective_status) { 'open'=>'Open','upcoming'=>'Upcoming','past'=>'Past', default=>ucfirst($event->effective_status) };
+      $bgClass     = 'bg-' . (($loop->index % 6) + 1);
+      $catSlug     = strtolower(str_replace([' ','/'], '-', $event->category ?? ''));
+      $dateRange   = $event->end_date && $event->end_date->ne($event->start_date)
+                       ? $event->start_date?->format('j') . '–' . $event->end_date?->format('j M Y')
+                       : $event->start_date?->format('j M Y');
+      $descLimit   = $featured ? 320 : 120;
+    @endphp
+    <div class="event-card {{ $featured ? 'featured' : '' }} reveal {{ $loop->index > 0 ? 'reveal-delay-' . min($loop->index, 6) : '' }}"
+         data-status="{{ $statusKey }}"
+         data-name="{{ strtolower($event->name) }}"
+         data-date="{{ $event->start_date?->format('Y-m-d') }}"
+         data-category="{{ $catSlug }}">
 
-    <div class="event-card reveal reveal-delay-1" data-status="open" data-name="YES National Board Retreat" data-date="2025-04-08">
+      {{-- Image / Poster --}}
       <div class="card-img">
-        <div class="card-img-inner bg-2"></div>
-        <div class="card-badge">Official</div>
-        <div class="card-status status-open">Open</div>
+        <div class="card-img-inner {{ $bgClass }}"
+             @if($event->poster_src) style="background-image:url('{{ $event->poster_src }}')" @endif></div>
+        <div class="card-badge">{{ $event->category ?? 'Official' }}</div>
+        <div class="card-status status-{{ $statusKey }}">{{ $statusLabel }}</div>
       </div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="card-date">8 Apr 2025</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Equatorial Hotel, Penang</span>
-        </div>
-        <h3>YES National Board Retreat 2025</h3>
-        <p>A two-day strategic planning retreat for national and state board members. Focused on sustainability goals, youth engagement targets, and cross-branch collaboration frameworks.</p>
-        <div class="card-footer">
-          <span class="card-seats">Seats: <strong>22 / 60</strong> remaining</span>
-          <a href="#" class="card-cta">Register Now →</a>
-        </div>
-      </div>
-    </div>
 
-    <div class="event-card reveal reveal-delay-2" data-status="open" data-name="Industry Collaboration Summit" data-date="2025-05-22">
-      <div class="card-img">
-        <div class="card-img-inner bg-3"></div>
-        <div class="card-badge">Official</div>
-        <div class="card-status status-open">Open</div>
-      </div>
+      {{-- Body --}}
       <div class="card-body">
-        <div class="card-meta">
-          <span class="card-date">22 May 2025</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Persada Johor, Johor Bahru</span>
-        </div>
-        <h3>Industry Collaboration Summit</h3>
-        <p>Connecting YES members with industry partners for mentorship, internships, and collaborative engineering projects. Over 30 companies confirmed to participate.</p>
-        <div class="card-footer">
-          <span class="card-seats">Seats: <strong>105 / 250</strong> remaining</span>
-          <a href="#" class="card-cta">Register Now →</a>
-        </div>
-      </div>
-    </div>
 
-    <div class="event-card reveal reveal-delay-3" data-status="upcoming" data-name="YES Leadership Excellence Forum" data-date="2025-06-18">
-      <div class="card-img">
-        <div class="card-img-inner bg-4"></div>
-        <div class="card-badge">Official</div>
-        <div class="card-status status-upcoming">Upcoming</div>
-      </div>
-      <div class="card-body">
+        {{-- Date · Time · Branch --}}
         <div class="card-meta">
-          <span class="card-date">18 Jun 2025</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Marriott Hotel, Putrajaya</span>
+          <div class="card-meta-row">
+            <span class="card-date">
+              {{ $dateRange }}
+              @if($event->start_time) · {{ $event->start_time }}@endif
+            </span>
+            @if($event->branch_name && $event->branch_name !== 'National')
+              <span class="card-branch">{{ $event->branch_name }}</span>
+            @endif
+          </div>
+          @if($event->location)
+          <div class="card-meta-row">
+            <span class="card-location">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              {{ $event->location }}
+            </span>
+          </div>
+          @endif
         </div>
-        <h3>YES Leadership Excellence Forum</h3>
-        <p>A full-day forum featuring keynote addresses from senior industry leaders, panel discussions on engineering leadership, and interactive workshops on career development and mentoring.</p>
-        <div class="card-footer">
-          <span class="card-seats">Registration opens <strong>1 May 2025</strong></span>
-          <a href="#" class="card-cta">Notify Me →</a>
-        </div>
-      </div>
-    </div>
 
-    <div class="event-card reveal reveal-delay-4" data-status="upcoming" data-name="Mid-Year Board Review" data-date="2025-07-10">
-      <div class="card-img">
-        <div class="card-img-inner bg-5"></div>
-        <div class="card-badge">Official</div>
-        <div class="card-status status-upcoming">Upcoming</div>
-      </div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="card-date">10 Jul 2025</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>YES HQ, Putrajaya</span>
-        </div>
-        <h3>Mid-Year Board Review &amp; Planning</h3>
-        <p>An internal board review to assess H1 performance against KPIs, recalibrate event planning for Q3–Q4, and review the progress of state branch programmes across Malaysia.</p>
-        <div class="card-footer">
-          <span class="card-seats">Board Members <strong>Only</strong></span>
-          <a href="#" class="card-cta disabled">Members Only</a>
-        </div>
-      </div>
-    </div>
+        <h3>{{ $event->name }}</h3>
 
-    <div class="event-card reveal reveal-delay-5" data-status="closed" data-name="YES Annual Gala Dinner 2024" data-date="2024-11-30">
-      <div class="card-img">
-        <div class="card-img-inner bg-6"></div>
-        <div class="card-badge">Official</div>
-        <div class="card-status status-closed">Past</div>
-      </div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="card-date">30 Nov 2024</span>
-          <span class="card-location"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Grand Hyatt, Kuala Lumpur</span>
-        </div>
-        <h3>YES Annual Gala Dinner 2024</h3>
-        <p>The year-end celebration recognising outstanding members, board contributions, and landmark achievements of 2024. Over 400 members, guests, and industry partners attended.</p>
+        @if($event->description)
+          <p class="card-desc">{{ Str::limit($event->description, $descLimit) }}</p>
+        @endif
+
+        {{-- Tags --}}
+        @if($event->tags && count($event->tags))
+          <div class="card-tags">
+            @foreach($event->tags as $tag)
+              <span class="card-tag">{{ $tag }}</span>
+            @endforeach
+          </div>
+        @endif
+
+        {{-- Organiser + Phone --}}
+        @if($event->organiser)
+          <div class="card-contact">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <strong>{{ $event->organiser }}</strong>
+            @if($event->organiser_phone)
+              <span class="sep">·</span>
+              {{ $event->organiser_phone }}
+            @endif
+          </div>
+        @endif
+
+        {{-- Footer --}}
         <div class="card-footer">
-          <span class="card-seats">Event <strong>Concluded</strong></span>
-          <a href="#" class="card-cta">View Highlights →</a>
+          @if($event->effective_status === 'past')
+            <span class="card-seats">Event <strong>Concluded</strong></span>
+          @elseif($event->effective_status === 'upcoming')
+            <span class="card-seats">Registration <strong>Opens Soon</strong></span>
+          @else
+            <span class="card-seats">Registration <strong>Open</strong></span>
+          @endif
         </div>
+
       </div>
     </div>
+    @empty
+    <div style="grid-column:span 3;text-align:center;padding:80px 20px">
+      <svg viewBox="0 0 24 24" style="width:52px;height:52px;stroke:var(--light-grey);fill:none;stroke-width:1.5;margin-bottom:20px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <h3 style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">No events published yet</h3>
+      <p style="font-size:14px;color:var(--grey)">Check back soon for upcoming YES HQ events.</p>
+    </div>
+    @endforelse
 
     <div class="no-results" id="noResults" style="display:none;">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -468,14 +463,15 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
 
 <script>
 const allCards = () => Array.from(document.querySelectorAll('.event-card[data-status]'));
-let activeFilter = 'all', searchQuery = '';
+let activeTimeline = 'present', activeCategory = '', searchQuery = '';
 
-function filterEvents(status, btn) {
-  activeFilter = status;
+function filterTimeline(tl, btn) {
+  activeTimeline = tl;
   document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   applyFilters();
 }
+function filterCategory(cat) { activeCategory = cat; applyFilters(); }
 function searchEvents(val) { searchQuery = val.toLowerCase(); applyFilters(); }
 function sortEvents(val) {
   const grid = document.getElementById('eventsGrid');
@@ -490,15 +486,19 @@ function sortEvents(val) {
 function applyFilters() {
   let visible = 0;
   allCards().forEach(card => {
-    const show = (activeFilter === 'all' || card.dataset.status === activeFilter) &&
-                 (!searchQuery || card.dataset.name.toLowerCase().includes(searchQuery));
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
+    const isPast = card.dataset.status === 'closed';
+    const ok = ((activeTimeline === 'present' && !isPast) || (activeTimeline === 'past' && isPast))
+            && (!activeCategory || card.dataset.category === activeCategory)
+            && (!searchQuery   || card.dataset.name.includes(searchQuery));
+    card.style.display = ok ? '' : 'none';
+    if (ok) visible++;
   });
   document.getElementById('noResults').style.display = visible === 0 ? 'flex' : 'none';
   const f = document.querySelector('.event-card.featured');
-  if (f && f.style.display !== 'none') f.style.gridColumn = 'span 3';
+  if (f) f.style.gridColumn = f.style.display !== 'none' ? 'span 3' : '';
 }
+
+applyFilters();
 
 const obs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });

@@ -47,12 +47,15 @@ class EventsController extends Controller
 
         $events = $query->withTrashed(false)->paginate(20)->withQueryString();
 
-        // Stat counts
+        // Stat counts. "Reinstate pending" = a draft that HQ sent back for revision
+        // (it carries a revision_note); a plain draft has never been through review.
         $stats = [
-            'total'    => Event::forBranch($branch->id)->count(),
-            'open'     => Event::forBranch($branch->id)->where('status', 'open')->count(),
-            'draft'    => Event::forBranch($branch->id)->whereIn('status', ['draft', 'upcoming'])->count(),
-            'review'   => Event::forBranch($branch->id)->where('status', 'submitted')->count(),
+            'total'     => Event::forBranch($branch->id)->count(),
+            'approved'  => Event::forBranch($branch->id)->where('status', 'approved')->count(),
+            'published' => Event::forBranch($branch->id)->where('track_published', true)->count(),
+            'reinstate' => Event::forBranch($branch->id)->where('status', 'draft')->whereNotNull('revision_note')->count(),
+            'draft'     => Event::forBranch($branch->id)->where('status', 'draft')->whereNull('revision_note')->count(),
+            'review'    => Event::forBranch($branch->id)->where('status', 'submitted')->count(),
         ];
 
         return view('student-section.my-events', compact('user', 'branch', 'events', 'stats'));
@@ -68,9 +71,10 @@ class EventsController extends Controller
             'start_date'         => 'required|date',
             'end_date'           => 'nullable|date|after_or_equal:start_date',
             'venue'              => 'required|string|max:255',
-            'status'             => ['required', Rule::in(['draft', 'upcoming'])],
+            'action'             => ['nullable', Rule::in(['draft', 'submit'])],
             'description'        => 'nullable|string',
             'poster'             => 'nullable|image|max:5120',
+            'ppw'                => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'tags'               => 'nullable|string',
         ]);
 
@@ -78,12 +82,25 @@ class EventsController extends Controller
         $user   = Auth::user();
         $branch = $user->branch;
 
-        DB::transaction(function () use ($validated, $request, $user, $branch) {
+        // "Submit for HQ Review" forwards to admin; otherwise it's saved as a draft.
+        $submitting = $request->input('action') === 'submit';
+
+        DB::transaction(function () use ($validated, $request, $user, $branch, $submitting) {
             // Poster upload
             $posterPath = null;
             if ($request->hasFile('poster')) {
                 $posterPath = $request->file('poster')->store(
                     "branches/{$branch->id}/event-posters", 'public'
+                );
+            }
+
+            // PPW / supporting document upload
+            $ppwPath = null;
+            $ppwName = null;
+            if ($request->hasFile('ppw')) {
+                $ppwName = $request->file('ppw')->getClientOriginalName();
+                $ppwPath = $request->file('ppw')->store(
+                    "branches/{$branch->id}/ppw", 'public'
                 );
             }
 
@@ -102,22 +119,33 @@ class EventsController extends Controller
                 'start_date'         => $validated['start_date'],
                 'end_date'           => $validated['end_date'] ?? null,
                 'venue'              => $validated['venue'],
-                'status'             => $validated['status'],
+                'status'             => $submitting ? Event::STATUS_SUBMITTED : Event::STATUS_DRAFT,
+                'track_submitted'    => $submitting,
+                'submitted_at'       => $submitting ? now() : null,
                 'description'        => $validated['description'] ?? null,
                 'poster_path'        => $posterPath,
+                'ppw_path'           => $ppwPath,
+                'ppw_filename'       => $ppwName,
                 'tags'               => array_values($tags),
-                'is_sdg'             => str_contains(strtolower($validated['category'] ?? ''), 'sdg')
+                'is_sdg'             => $request->boolean('is_sdg')
+                                        || str_contains(strtolower($validated['category'] ?? ''), 'sdg')
                                         || str_contains(strtolower($validated['category'] ?? ''), 'volunteer'),
             ]);
 
-            ActivityLog::record(
-                $branch->id, 'event_submitted',
-                "New event created: {$event->title}",
-                $user->id, $event
-            );
+            // Drafts stay local to the chapter; only a submission updates the admin system.
+            if ($submitting) {
+                ActivityLog::record(
+                    $branch->id, 'event_submitted',
+                    "Event submitted for review: {$event->title}",
+                    $user->id, $event
+                );
+            }
         });
 
-        return redirect()->route('student.events')->with('success', 'Event created and submitted for review.');
+        return redirect()->route('student.events')->with(
+            'success',
+            $submitting ? 'Event submitted for HQ review.' : 'Event saved as draft.'
+        );
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -126,50 +154,82 @@ class EventsController extends Controller
     {
         $this->authorizeEvent($event);
 
+        if (!$event->canBeEdited()) {
+            return redirect()->route('student.events')
+                ->with('error', 'This event is locked (under review or already decided) and can no longer be edited.');
+        }
+
         $validated = $request->validate([
             'title'        => 'required|string|max:255',
             'category'     => ['required', Rule::in(Event::CATEGORIES)],
             'start_date'   => 'required|date',
             'end_date'     => 'nullable|date|after_or_equal:start_date',
             'venue'        => 'required|string|max:255',
-            'status'       => ['required', Rule::in(array_values((array) Event::STATUS_DRAFT . Event::STATUS_UPCOMING . Event::STATUS_OPEN . Event::STATUS_PAST . Event::STATUS_CANCELLED))],
+            'action'       => ['nullable', Rule::in(['draft', 'submit'])],
             'description'  => 'nullable|string',
-            'internal_notes' => 'nullable|string',
             'tags'         => 'nullable|string',
             'poster'       => 'nullable|image|max:5120',
+            'ppw'          => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
-        DB::transaction(function () use ($validated, $request, $event) {
+        // "Save & Submit" forwards to admin review; otherwise the event stays a draft.
+        $submitting = $request->input('action') === 'submit';
+
+        DB::transaction(function () use ($validated, $request, $event, $submitting) {
+            $attrs = [
+                'title'       => $validated['title'],
+                'category'    => $validated['category'],
+                'start_date'  => $validated['start_date'],
+                'end_date'    => $validated['end_date'] ?? null,
+                'venue'       => $validated['venue'],
+                'description' => $validated['description'] ?? null,
+                'tags'        => array_values(array_filter(array_map('trim', explode(',', $validated['tags'] ?? '')))),
+                'is_sdg'      => $request->boolean('is_sdg')
+                                 || str_contains(strtolower($validated['category']), 'sdg')
+                                 || str_contains(strtolower($validated['category']), 'volunteer'),
+            ];
+
             if ($request->hasFile('poster')) {
                 if ($event->poster_path) {
                     Storage::disk('public')->delete($event->poster_path);
                 }
-                $validated['poster_path'] = $request->file('poster')->store(
+                $attrs['poster_path'] = $request->file('poster')->store(
                     "branches/{$event->branch_id}/event-posters", 'public'
                 );
             }
 
-            $tags = [];
-            if (!empty($validated['tags'])) {
-                $tags = array_values(array_filter(array_map('trim', explode(',', $validated['tags']))));
+            if ($request->hasFile('ppw')) {
+                if ($event->ppw_path) {
+                    Storage::disk('public')->delete($event->ppw_path);
+                }
+                $attrs['ppw_filename'] = $request->file('ppw')->getClientOriginalName();
+                $attrs['ppw_path']     = $request->file('ppw')->store(
+                    "branches/{$event->branch_id}/ppw", 'public'
+                );
             }
 
-            $event->update([
-                'title'          => $validated['title'],
-                'category'       => $validated['category'],
-                'start_date'     => $validated['start_date'],
-                'end_date'       => $validated['end_date'] ?? null,
-                'venue'          => $validated['venue'],
-                'status'         => $validated['status'],
-                'description'    => $validated['description'] ?? null,
-                'internal_notes' => $validated['internal_notes'] ?? null,
-                'tags'           => $tags,
-                'poster_path'    => $validated['poster_path'] ?? $event->poster_path,
-            ]);
+            $event->update($attrs);
+
+            if ($submitting) {
+                // Routes through the shared workflow so the pipeline/flags stay consistent.
+                $event->submitForReview();
+            }
+
+            // Local edits aren't tracked; only a (re)submission reaches the admin system.
+            if ($submitting) {
+                ActivityLog::record(
+                    $event->branch_id, 'event_submitted',
+                    "Event submitted for review: {$event->title}",
+                    Auth::id(), $event
+                );
+            }
 
         });
 
-        return response()->json(['success' => true, 'message' => 'Event updated.']);
+        return back()->with(
+            'success',
+            $submitting ? 'Event updated and submitted for HQ review.' : 'Event updated.'
+        );
     }
 
     // ── Submit for review ─────────────────────────────────────────────────────
@@ -179,7 +239,7 @@ class EventsController extends Controller
         $this->authorizeEvent($event);
 
         if (!$event->canBeSubmitted()) {
-            return response()->json(['success' => false, 'message' => 'Event cannot be submitted in its current state.'], 422);
+            return back()->with('error', 'Event cannot be submitted in its current state.');
         }
 
         $event->submitForReview();
@@ -190,7 +250,36 @@ class EventsController extends Controller
             Auth::id(), $event
         );
 
-        return response()->json(['success' => true, 'message' => 'Event submitted for HQ review.']);
+        return back()->with('success', 'Event submitted for HQ review.');
+    }
+
+    // ── Publish / unpublish to the public site ────────────────────────────────
+
+    public function togglePublish(Event $event)
+    {
+        $this->authorizeEvent($event);
+
+        // Only HQ-approved events can be made public; the publish decision is the chapter's.
+        if ($event->status !== Event::STATUS_APPROVED) {
+            return back()->with('error', 'Only HQ-approved events can be published to the public site.');
+        }
+
+        $publish = !$event->track_published;
+        $event->update(['track_published' => $publish]);
+
+        ActivityLog::record(
+            $event->branch_id,
+            $publish ? 'event_published' : 'event_unpublished',
+            $publish
+                ? "Event published to public site: {$event->title}"
+                : "Event unpublished from public site: {$event->title}",
+            Auth::id(), $event
+        );
+
+        return back()->with(
+            'success',
+            $publish ? 'Event published — it is now live on the public site.' : 'Event unpublished — it is no longer public.'
+        );
     }
 
     // ── Upload poster (inline) ────────────────────────────────────────────────
@@ -198,6 +287,11 @@ class EventsController extends Controller
     public function uploadPoster(Request $request, Event $event)
     {
         $this->authorizeEvent($event);
+
+        if (!$event->canBeEdited()) {
+            return back()->with('error', 'This event is locked (under review or already decided) and its poster can no longer be changed.');
+        }
+
         $request->validate(['poster' => 'required|image|max:5120']);
 
         if ($event->poster_path) {
@@ -209,7 +303,7 @@ class EventsController extends Controller
         );
         $event->update(['poster_path' => $path]);
 
-        return response()->json(['success' => true, 'url' => asset('storage/' . $path)]);
+        return back()->with('success', 'Poster uploaded.');
     }
 
     // ── Remove poster ─────────────────────────────────────────────────────────
@@ -218,12 +312,16 @@ class EventsController extends Controller
     {
         $this->authorizeEvent($event);
 
+        if (!$event->canBeEdited()) {
+            return back()->with('error', 'This event is locked (under review or already decided) and its poster can no longer be changed.');
+        }
+
         if ($event->poster_path) {
             Storage::disk('public')->delete($event->poster_path);
             $event->update(['poster_path' => null]);
         }
 
-        return response()->json(['success' => true]);
+        return back()->with('success', 'Poster removed.');
     }
 
     // ── Destroy ───────────────────────────────────────────────────────────────
@@ -232,13 +330,19 @@ class EventsController extends Controller
     {
         $this->authorizeEvent($event);
 
-        if ($event->poster_path) {
-            Storage::disk('public')->delete($event->poster_path);
+        if (!$event->canBeDeleted()) {
+            return back()->with('error', 'Events under review or already approved cannot be deleted.');
+        }
+
+        foreach ([$event->poster_path, $event->ppw_path] as $path) {
+            if ($path) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
         $event->delete();
 
-        return response()->json(['success' => true, 'message' => 'Event deleted.']);
+        return redirect()->route('student.events')->with('success', 'Event deleted.');
     }
 
     // ── Export ────────────────────────────────────────────────────────────────

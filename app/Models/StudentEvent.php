@@ -17,10 +17,10 @@ class StudentEvent extends Model
 
     protected $fillable = [
         'branch_id', 'created_by', 'title', 'category', 'description',
-        'start_date', 'end_date', 'venue', 'max_capacity', 'expected_attendees',
-        'status', 'poster_path', 'internal_notes', 'tags', 'is_sdg', 'sdg_goals',
+        'start_date', 'end_date', 'venue',
+        'status', 'poster_path', 'ppw_path', 'ppw_filename', 'internal_notes', 'tags', 'is_sdg', 'sdg_goals',
         'track_submitted', 'track_doc_approved', 'track_budget_approved',
-        'track_published', 'track_rejected', 'rejection_reason',
+        'track_published', 'track_rejected', 'rejection_reason', 'revision_note',
         'submitted_at', 'approved_at', 'approved_by',
     ];
 
@@ -37,14 +37,11 @@ class StudentEvent extends Model
         'track_budget_approved' => 'boolean',
         'track_published'       => 'boolean',
         'track_rejected'        => 'boolean',
-        'max_capacity'          => 'integer',
-        'expected_attendees'    => 'integer',
     ];
 
     // ── Status constants ──────────────────────────────────────────────────────
 
     const STATUS_DRAFT     = 'draft';
-    const STATUS_UPCOMING  = 'upcoming';
     const STATUS_OPEN      = 'open';
     const STATUS_SUBMITTED = 'submitted';
     const STATUS_APPROVED  = 'approved';
@@ -117,17 +114,6 @@ class StudentEvent extends Model
                     ->count();
     }
 
-    public function getRegistrationPercentAttribute(): int
-    {
-        if (!$this->max_capacity || $this->max_capacity === 0) return 0;
-        return (int) round(($this->registration_count / $this->max_capacity) * 100);
-    }
-
-    public function getIsFullAttribute(): bool
-    {
-        return (bool) ($this->max_capacity && $this->registration_count >= $this->max_capacity);
-    }
-
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeForBranch($query, int $branchId)
@@ -144,7 +130,6 @@ class StudentEvent extends Model
     {
         return $query->whereIn('status', [
                         self::STATUS_OPEN,
-                        self::STATUS_UPCOMING,
                         self::STATUS_APPROVED,
                      ])
                      ->where('start_date', '>=', now());
@@ -157,9 +142,24 @@ class StudentEvent extends Model
 
     // ── Methods ───────────────────────────────────────────────────────────────
 
+    /**
+     * Statuses where the ball is in the student's court — free to edit / delete / submit.
+     * Once submitted the event is locked; only an admin "reinstate" (send back) returns it
+     * to draft. A rejected event is terminal (informational only) and cannot be edited.
+     */
+    public function canBeEdited(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function canBeDeleted(): bool
+    {
+        return $this->canBeEdited();
+    }
+
     public function canBeSubmitted(): bool
     {
-        return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_UPCOMING]);
+        return $this->status === self::STATUS_DRAFT;
     }
 
     public function submitForReview(): bool
@@ -167,9 +167,15 @@ class StudentEvent extends Model
         if (!$this->canBeSubmitted()) return false;
 
         $this->update([
-            'status'          => self::STATUS_SUBMITTED,
-            'track_submitted' => true,
-            'submitted_at'    => now(),
+            'status'           => self::STATUS_SUBMITTED,
+            'track_submitted'  => true,
+            'submitted_at'     => now(),
+            // A resubmission restarts the pipeline cleanly.
+            'track_doc_approved'    => false,
+            'track_budget_approved' => false,
+            'track_published'       => false,
+            'track_rejected'        => false,
+            'rejection_reason'      => null,
         ]);
 
         return true;
@@ -181,7 +187,7 @@ class StudentEvent extends Model
             'status'                => self::STATUS_APPROVED,
             'track_doc_approved'    => true,
             'track_budget_approved' => true,
-            'track_published'       => true,
+            // Approval stops here — the chapter decides whether to publish to the public site.
             'approved_by'           => $approverId,
             'approved_at'           => now(),
         ]);

@@ -7,6 +7,11 @@
 
 @section('styles')
 <style>
+/* ── RETURN MODAL ── */
+.bmodal-ar{display:none;position:fixed;inset:0;background:rgba(0,31,69,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.bmodal-ar.open{display:flex}
+.bmodal-ar-box{background:#fff;border-radius:6px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+
 /* ── FILTER ── */
 .filter-row{display:flex;gap:9px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
 
@@ -64,28 +69,28 @@
 {{-- Stats --}}
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
     <div class="sc">
-        <div class="sc-bar" style="background:var(--amber)"></div>
-        <div class="sc-lbl">Pending Upload</div>
-        <div class="sc-val">14</div>
-        <div class="sc-sub">Chapters not yet submitted</div>
-    </div>
-    <div class="sc">
         <div class="sc-bar" style="background:var(--blue)"></div>
         <div class="sc-lbl">Under Review</div>
-        <div class="sc-val">5</div>
-        <div class="sc-sub">Awaiting admin approval</div>
+        <div class="sc-val">{{ $counts['pending'] }}</div>
+        <div class="sc-sub">Awaiting admin decision</div>
     </div>
     <div class="sc">
         <div class="sc-bar" style="background:var(--green)"></div>
-        <div class="sc-lbl">Approved & Stored</div>
-        <div class="sc-val">19</div>
-        <div class="sc-sub">Archived reports</div>
+        <div class="sc-lbl">Approved</div>
+        <div class="sc-val">{{ $counts['approved'] }}</div>
+        <div class="sc-sub">Signed off</div>
+    </div>
+    <div class="sc">
+        <div class="sc-bar" style="background:var(--red)"></div>
+        <div class="sc-lbl">Returned</div>
+        <div class="sc-val">{{ $counts['rejected'] }}</div>
+        <div class="sc-sub">Sent back to chapter</div>
     </div>
     <div class="sc">
         <div class="sc-bar" style="background:var(--navy)"></div>
-        <div class="sc-lbl">Submission Rate</div>
-        <div class="sc-val">63%</div>
-        <div class="sc-sub">24 of 38 chapters done</div>
+        <div class="sc-lbl">Total Submitted</div>
+        <div class="sc-val">{{ $counts['pending'] + $counts['approved'] + $counts['rejected'] }}</div>
+        <div class="sc-sub">All reports received</div>
     </div>
 </div>
 
@@ -115,237 +120,95 @@
         <thead>
             <tr>
                 <th>Chapter</th>
+                <th>Year</th>
                 <th>Submitted</th>
-                <th>Report File</th>
-                <th>Pages / Size</th>
                 <th style="text-align:center">Status</th>
                 <th style="text-align:right">Actions</th>
             </tr>
         </thead>
         <tbody>
-        @foreach([
-            ['YES UTM Kuala Lumpur','Universiti Teknologi Malaysia, KL','24 Apr 2025','annual_report_utm_kl_2025.pdf','42 pp · 4.1 MB','review'],
-            ['YES USM Penang','Universiti Sains Malaysia','22 Apr 2025','annual_report_usm_2025.pdf','38 pp · 3.8 MB','review'],
-            ['YES UTM Johor','Universiti Teknologi Malaysia, Skudai','18 Apr 2025','annual_report_utm_johor_2025.pdf','55 pp · 5.2 MB','approved'],
-            ['YES UTP Perak','Universiti Teknologi PETRONAS','12 Apr 2025','annual_report_utp_2025.pdf','31 pp · 2.9 MB','approved'],
-            ['YES UiTM Shah Alam','Universiti Teknologi MARA','8 Apr 2025','annual_report_uitm_sa_2025.pdf','28 pp · 2.4 MB','approved'],
-            ['YES UNITEN KL','Universiti Tenaga Nasional','3 Apr 2025','annual_report_uniten_2025.pdf','22 pp · 1.8 MB','rejected'],
-            ['YES UMP Gambang','Universiti Malaysia Pahang','—','—','—','pending'],
-            ['YES UNIMAS Sarawak','Universiti Malaysia Sarawak','—','—','—','pending'],
-        ] as [$chapter,$uni,$date,$file,$meta,$status])
+        @forelse($reports as $report)
         @php
             $badges = [
-                'review'   => ['b-upcoming', 'Under Review'],
+                'pending'  => ['b-pending',  'Under Review'],
                 'approved' => ['b-approved', 'Approved'],
                 'rejected' => ['b-rejected', 'Returned'],
-                'pending'  => ['b-pending',  'Pending Upload'],
             ];
-            [$badgeClass, $badgeText] = $badges[$status];
+            [$badgeClass, $badgeText] = $badges[$report->status] ?? ['b-pending', ucfirst($report->status)];
         @endphp
-        <tr data-status="{{ $status }}">
+        <tr data-status="{{ $report->status }}">
             <td>
-                <div class="chapter-name">{{ $chapter }}</div>
-                <div class="chapter-uni">{{ $uni }}</div>
+                <div class="chapter-name">{{ $report->branch?->identity_name ?? $report->branch?->name ?? '—' }}</div>
+                <div class="chapter-uni">{{ $report->branch?->institution }}</div>
             </td>
-            <td class="et-sm">{{ $date }}</td>
-            <td>
-                @if($file !== '—')
-                <div class="file-info">
-                    <div class="fi-icon">
-                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    </div>
-                    <div>
-                        <div class="fi-name">{{ $file }}</div>
-                        <div class="fi-meta">PDF</div>
-                    </div>
-                </div>
-                @else
-                <span style="font-size:11px;color:var(--grey)">Not submitted yet</span>
-                @endif
-            </td>
-            <td class="et-sm">{{ $meta }}</td>
+            <td class="et-sm">{{ $report->year }}</td>
+            <td class="et-sm">{{ optional($report->submitted_at ?? $report->created_at)->format('j M Y') }}</td>
             <td style="text-align:center">
                 <span class="badge {{ $badgeClass }}">{{ $badgeText }}</span>
             </td>
             <td>
                 <div class="act-cell">
-                    @if($file !== '—')
-                    <button class="abtn" title="Preview" onclick="openPreview('{{ $chapter }}','{{ $uni }}','{{ $file }}','{{ $meta }}','{{ $status }}')">
+                    <a class="abtn" title="View report" href="{{ route('admin.annual-reports.view', $report) }}">
                         <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    </button>
-                    <button class="abtn" title="Download">
-                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    </button>
-                    @endif
-                    @if($status === 'review')
-                    <button class="btn-approve" style="padding:6px 12px;font-size:9px" onclick="approveReport(this)">
-                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                        Approve
-                    </button>
-                    <button class="btn-reject" style="padding:6px 12px;font-size:9px" onclick="rejectReport(this)">
-                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        Return
-                    </button>
-                    @elseif($status === 'pending')
-                    <button class="btn-primary" style="font-size:9px;padding:6px 12px" onclick="showToast('Reminder sent to chapter.','success')">
-                        <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        Remind
-                    </button>
+                    </a>
+                    @if($report->status === 'pending')
+                    <form method="POST" action="{{ route('admin.annual-reports.approve', $report) }}" style="display:inline">
+                        @csrf
+                        <button type="submit" class="btn-approve" style="padding:6px 12px;font-size:9px"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Approve</button>
+                    </form>
+                    <button class="btn-reject" style="padding:6px 12px;font-size:9px" onclick="openReturn('{{ route('admin.annual-reports.reject', $report) }}', @js($report->branch?->name))"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Return</button>
+                    @elseif($report->status === 'rejected')
+                    <span style="font-size:10px;color:var(--grey)">Returned · awaiting resubmission</span>
+                    @else
+                    <span style="font-size:10px;color:var(--grey)">Approved {{ optional($report->reviewed_at)->format('j M Y') }}</span>
                     @endif
                 </div>
             </td>
         </tr>
-        @endforeach
+        @empty
+        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--grey);font-size:13px">No annual reports submitted yet.</td></tr>
+        @endforelse
         </tbody>
     </table>
 </div>
 
-{{-- Preview Slide Panel --}}
-<div class="dim-overlay" id="dim" onclick="closePreview()"></div>
-<div class="slide-panel" id="preview-panel">
-    <div class="sp-head">
-        <div>
-            <div class="sp-mode-badge">Annual Report</div>
-            <h3 id="sp-title">Chapter Name</h3>
-            <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px" id="sp-uni"></div>
-        </div>
-        <button class="sp-close" onclick="closePreview()">×</button>
-    </div>
-    <div class="sp-body">
+<div style="margin-top:14px">{{ $reports->links() }}</div>
 
-        {{-- Pipeline --}}
-        <div style="margin-bottom:20px">
-            <div class="pf-lbl">Review Pipeline</div>
-            <div class="pipeline-steps" id="sp-pipeline">
-                <div class="ps"><div class="ps-dot done"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="ps-lbl done">Submitted</div></div>
-                <div class="ps"><div class="ps-dot active"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="ps-lbl active">Admin Review</div></div>
-                <div class="ps"><div class="ps-dot"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="ps-lbl">Archived</div></div>
-            </div>
+{{-- Return-to-chapter modal --}}
+<div id="returnModal" class="bmodal-ar">
+    <form method="POST" id="returnForm" class="bmodal-ar-box">
+        @csrf
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px" id="returnTitle">Return report to chapter</div>
+        <div style="font-size:11px;color:var(--grey);margin-bottom:12px">This feedback is sent to the chapter so they can revise the stats and resubmit.</div>
+        <textarea name="notes" id="returnNotes" required placeholder="What needs to be corrected?…" style="width:100%;border:1px solid var(--light);background:var(--off);padding:10px;font-family:inherit;font-size:12px;color:var(--navy);outline:none;border-radius:3px;min-height:90px;resize:vertical"></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+            <button type="button" onclick="closeReturn()" style="background:none;border:1px solid var(--light);color:var(--grey);padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:3px">Cancel</button>
+            <button type="submit" class="btn-reject">Return Report</button>
         </div>
-
-        <div class="pf-row">
-            <div class="pf-lbl">File</div>
-            <div id="sp-file" class="pf-val"></div>
-        </div>
-        <div class="pf-row">
-            <div class="pf-lbl">Size / Pages</div>
-            <div id="sp-meta" class="pf-val muted"></div>
-        </div>
-        <hr class="pf-divider"/>
-        <div class="pf-row">
-            <label class="pf-lbl" for="sp-note">Admin Notes (sent to chapter on action)</label>
-            <textarea id="sp-note" class="pf-textarea" placeholder="Optional notes or feedback for the chapter…"></textarea>
-        </div>
-    </div>
-    <div class="sp-foot" id="sp-foot">
-        <button class="btn-ghost" onclick="closePreview()">Cancel</button>
-        <button class="btn-reject" onclick="rejectFromPanel()">
-            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Return to Chapter
-        </button>
-        <button class="btn-approve" onclick="approveFromPanel()">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            Approve & Archive
-        </button>
-    </div>
+    </form>
 </div>
 
 @endsection
 
 @section('scripts')
 <script>
-let activeRow = null;
-
-function openPreview(chapter, uni, file, meta, status) {
-    document.getElementById('sp-title').textContent = chapter;
-    document.getElementById('sp-uni').textContent   = uni;
-    document.getElementById('sp-file').textContent  = file;
-    document.getElementById('sp-meta').textContent  = meta;
-    document.getElementById('sp-note').value        = '';
-
-    const foot = document.getElementById('sp-foot');
-    if (status !== 'review') {
-        foot.querySelector('.btn-reject').style.display  = 'none';
-        foot.querySelector('.btn-approve').style.display = 'none';
-    } else {
-        foot.querySelector('.btn-reject').style.display  = 'flex';
-        foot.querySelector('.btn-approve').style.display = 'flex';
-    }
-
-    document.getElementById('dim').classList.add('on');
-    document.getElementById('preview-panel').classList.add('open');
+function openReturn(action, chapter) {
+    const f = document.getElementById('returnForm');
+    f.action = action;
+    document.getElementById('returnTitle').textContent = 'Return report' + (chapter ? ' to ' + chapter : '');
+    document.getElementById('returnNotes').value = '';
+    document.getElementById('returnModal').classList.add('open');
+    setTimeout(() => document.getElementById('returnNotes').focus(), 50);
 }
-
-function closePreview() {
-    document.getElementById('dim').classList.remove('on');
-    document.getElementById('preview-panel').classList.remove('open');
-}
-
-function approveReport(btn) {
-    const row     = btn.closest('tr');
-    const chapter = row.querySelector('.chapter-name')?.textContent || 'this chapter';
-    showConfirm({
-        title: 'Approve Annual Report',
-        msg:   'This will mark the report as approved and archive it. The chapter will be notified.',
-        chip:  chapter,
-        type:  'approve',
-        onConfirm: () => {
-            const badge = row.querySelector('.badge');
-            badge.className = 'badge b-approved'; badge.textContent = 'Approved';
-            btn.closest('.act-cell').querySelector('.btn-reject')?.remove();
-            btn.closest('.act-cell').querySelector('.btn-approve')?.remove();
-            showToast('Annual report approved and archived.', 'success');
-        }
-    });
-}
-
-function rejectReport(btn) {
-    const row     = btn.closest('tr');
-    const chapter = row.querySelector('.chapter-name')?.textContent || 'this chapter';
-    showConfirm({
-        title:        'Return Report to Chapter',
-        msg:          'The report will be returned to the chapter for revision. Please provide feedback so they know what to correct.',
-        chip:         chapter,
-        type:         'reject',
-        requireNotes: true,
-        onConfirm: (notes) => {
-            const badge = row.querySelector('.badge');
-            badge.className = 'badge b-rejected'; badge.textContent = 'Returned';
-            btn.closest('.act-cell').querySelector('.btn-reject')?.remove();
-            btn.closest('.act-cell').querySelector('.btn-approve')?.remove();
-            showToast('Report returned to chapter with feedback.', 'danger');
-        }
-    });
-}
-
-function approveFromPanel() {
-    const chapter = document.getElementById('sp-title').textContent;
-    showConfirm({
-        title: 'Approve Annual Report',
-        msg:   'This will mark the report as approved and archive it. The chapter will be notified.',
-        chip:  chapter,
-        type:  'approve',
-        onConfirm: () => { closePreview(); showToast('Annual report approved and archived.', 'success'); }
-    });
-}
-
-function rejectFromPanel() {
-    const chapter = document.getElementById('sp-title').textContent;
-    showConfirm({
-        title:        'Return Report to Chapter',
-        msg:          'The report will be returned to the chapter for revision. Please provide feedback.',
-        chip:         chapter,
-        type:         'reject',
-        requireNotes: true,
-        onConfirm: (notes) => { closePreview(); showToast('Report returned with feedback.', 'danger'); }
-    });
-}
+function closeReturn() { document.getElementById('returnModal').classList.remove('open'); }
 
 function filterTable() {
     const q      = document.querySelector('.si-wrap input').value.toLowerCase();
     const status = document.querySelectorAll('.fsel')[1].value;
     document.querySelectorAll('#report-table tbody tr').forEach(row => {
-        const matchQ = !q || row.querySelector('.chapter-name').textContent.toLowerCase().includes(q);
+        const name = row.querySelector('.chapter-name');
+        if (!name) return;
+        const matchQ = !q || name.textContent.toLowerCase().includes(q);
         const matchS = !status || row.dataset.status === status;
         row.style.display = (matchQ && matchS) ? '' : 'none';
     });

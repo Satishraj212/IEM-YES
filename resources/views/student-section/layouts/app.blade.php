@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>@yield('title', 'Student Section') — YES UTM Johor</title>
+<title>@yield('title', 'Student Section') — {{ $branch->name ?? 'YES Student Section' }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
@@ -263,45 +263,59 @@ body{font-family:'DM Sans',sans-serif;background:#f3f4f6;color:#1f2937;display:f
 
 <aside class="dash-sidebar">
   <div class="branch-card">
-    <div class="branch-seal">JHR</div>
-    <div class="branch-name">YES UTM Johor</div>
-    <div class="branch-chapter">YES Johor Chapter</div>
-    <div class="branch-meta">Universiti Teknologi Malaysia, Skudai</div>
+    <div class="branch-seal">{{ strtoupper(substr($branch->code ?? $branch->name, 0, 3)) }}</div>
+    <div class="branch-name">{{ $branch->name }}</div>
+    <div class="branch-chapter">{{ $branch->chapter_name ?? $branch->chapter }}</div>
+    <div class="branch-meta">{{ $branch->institution }}{{ $branch->location ? ', ' . $branch->location : '' }}</div>
     <div class="branch-badges">
+      @if($branch->pledge_active)
       <span class="bb">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Pledge Active
       </span>
+      @endif
+      @if($branch->is_active)
       <span class="bb">Active Branch</span>
+      @endif
     </div>
   </div>
 
   <div class="info-items">
     <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:10px">Branch Information</div>
+    @if($branch->year_founded)
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <div><div class="info-label">Year Founded</div><div class="info-value">2008</div></div>
+      <div><div class="info-label">Year Founded</div><div class="info-value">{{ $branch->year_founded }}</div></div>
     </div>
+    @endif
+    @if($branch->location)
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      <div><div class="info-label">Location</div><div class="info-value">UTM Skudai, Johor Bahru</div></div>
+      <div><div class="info-label">Location</div><div class="info-value">{{ $branch->location }}</div></div>
     </div>
+    @endif
+    @if($branch->institution)
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-      <div><div class="info-label">Institution</div><div class="info-value">Universiti Teknologi Malaysia</div></div>
+      <div><div class="info-label">Institution</div><div class="info-value">{{ $branch->institution }}</div></div>
     </div>
+    @endif
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <div><div class="info-label">Total Members</div><div class="info-value">84 members · 76 active</div></div>
+      <div><div class="info-label">Total Members</div><div class="info-value">{{ $branch->member_count ?? 0 }} members</div></div>
     </div>
+    @if($branch->academic_year)
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      <div><div class="info-label">Academic Year</div><div class="info-value">2024 / 2025</div></div>
+      <div><div class="info-label">Academic Year</div><div class="info-value">{{ $branch->academic_year }}</div></div>
     </div>
+    @endif
+    @if($branch->ranking)
     <div class="info-item">
       <svg class="info-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <div><div class="info-label">Branch Ranking</div><div class="info-value">#3 among YES Johor</div></div>
+      <div><div class="info-label">Branch Ranking</div><div class="info-value">#{{ $branch->ranking }} {{ $branch->chapter_name ? 'in '.$branch->chapter_name : '' }}</div></div>
     </div>
+    @endif
   </div>
 
   <div class="sb-nav">
@@ -312,17 +326,17 @@ body{font-family:'DM Sans',sans-serif;background:#f3f4f6;color:#1f2937;display:f
     <a href="{{ route('student.events') }}" class="sb-ni {{ request()->routeIs('student.events') ? 'active' : '' }}">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
       My Events
-      <span class="sb-nb">5</span>
+      @if(($navCounts['events'] ?? 0) > 0)<span class="sb-nb">{{ $navCounts['events'] }}</span>@endif
     </a>
     <a href="{{ route('student.budget') }}" class="sb-ni {{ request()->routeIs('student.budget') ? 'active' : '' }}">
       <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       Budget Requests
-      <span class="sb-nb" style="background:rgba(217,119,6,.18);color:var(--amber)">2</span>
+      @if(($navCounts['budgets'] ?? 0) > 0)<span class="sb-nb" style="background:rgba(217,119,6,.18);color:var(--amber)">{{ $navCounts['budgets'] }}</span>@endif
     </a>
     <a href="{{ route('student.awards') }}" class="sb-ni {{ request()->routeIs('student.awards') ? 'active' : '' }}">
       <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Awards
-      <span class="sb-nb green">3</span>
+      @if(($navCounts['awards'] ?? 0) > 0)<span class="sb-nb green">{{ $navCounts['awards'] }}</span>@endif
     </a>
     <a href="{{ route('student.reports') }}" class="sb-ni {{ request()->routeIs('student.reports') ? 'active' : '' }}">
       <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -353,6 +367,11 @@ function showToast(msg, type) {
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.className = '', 3000);
 }
+@if(session('success'))
+window.addEventListener('DOMContentLoaded', () => showToast(@json(session('success')), 'success'));
+@elseif(session('error'))
+window.addEventListener('DOMContentLoaded', () => showToast(@json(session('error')), 'danger'));
+@endif
 </script>
 @yield('scripts')
 </body>

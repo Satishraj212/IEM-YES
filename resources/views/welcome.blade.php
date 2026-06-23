@@ -219,10 +219,21 @@ footer { background: var(--navy-dark); padding: 60px 60px 0; }
 <body>
 
 <div class="top-bar">
-  {{-- ↓ CHANGED: Member Login → Admin (routes to admin dashboard) ↓ --}}
-  <a href="{{ route('admin.dashboard') }}">Admin</a>
-  {{-- ↓ CHANGED: Sign Up → Student Section (routes to student dashboard) ↓ --}}
-  <a href="{{ route('student.dashboard') }}">Student Section</a>
+  @auth
+    @if(auth()->user()->role === 'admin')
+      <a href="{{ route('admin.dashboard') }}">Admin Panel</a>
+    @else
+      <a href="{{ route('student.overview') }}">My Dashboard</a>
+    @endif
+    <form method="POST" action="{{ route('logout') }}" style="display:inline">
+      @csrf
+      <button type="submit" style="background:none;border:none;color:rgba(255,255,255,0.65);font-size:12px;cursor:pointer;padding:0;font-family:'DM Sans',sans-serif;transition:color .2s"
+        onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='rgba(255,255,255,0.65)'">Logout</button>
+    </form>
+  @else
+    <a href="{{ route('login.admin') }}">Admin Login</a>
+    <a href="{{ route('login.student') }}">Student Login</a>
+  @endauth
   <a href="#">Careers</a>
   <a href="#">Media</a>
 </div>
@@ -414,46 +425,49 @@ footer { background: var(--navy-dark); padding: 60px 60px 0; }
     <button class="tab-btn" onclick="switchTab(this,'sustain')">Sustainability Events</button>
   </div>
   <div class="tab-panel active events-grid" id="tab-official">
+    @forelse ($upcomingOfficialEvents as $event)
     <div class="event-card">
-      <div class="img-wrap img-placeholder-1"><div class="event-badge badge-official">Official</div></div>
-      <div class="event-body"><div class="event-date">15 March 2025 · Kuala Lumpur</div><h3>YES Annual General Meeting 2025</h3><p>The AGM brings together the full board and chapter representatives to review progress and chart the direction for the coming year.</p><a href="{{ route('official-board-events') }}" class="event-link">Register →</a></div>
+      <div class="img-wrap img-placeholder-{{ ($loop->index % 5) + 1 }}"><div class="event-badge badge-official">Official</div></div>
+      <div class="event-body">
+        <div class="event-date">{{ $event->start_date?->format('j F Y') }}@if($event->location) · {{ $event->location }}@endif</div>
+        <h3>{{ $event->name }}</h3>
+        <p>{{ Str::limit($event->description, 120) }}</p>
+        <a href="{{ route('official-board-events') }}" class="event-link">Learn More →</a>
+      </div>
     </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-4"><div class="event-badge badge-official">Official</div></div>
-      <div class="event-body"><div class="event-date">8 April 2025 · Penang</div><h3>YES National Board Retreat</h3><p>Strategic planning session for national and state board members. Setting goals for sustainability and youth engagement.</p><a href="{{ route('official-board-events') }}" class="event-link">Learn More →</a></div>
-    </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-3"><div class="event-badge badge-official">Official</div></div>
-      <div class="event-body"><div class="event-date">22 May 2025 · Johor Bahru</div><h3>Industry Collaboration Summit</h3><p>Connecting YES members with industry partners for mentorship, internships, and collaborative engineering projects.</p><a href="{{ route('official-board-events') }}" class="event-link">Register →</a></div>
-    </div>
+    @empty
+    <p style="color:var(--grey);font-size:14px;grid-column:span 3;padding:20px 0">No upcoming official events at this time.</p>
+    @endforelse
   </div>
   <div class="tab-panel events-grid" id="tab-student">
+    @forelse ($upcomingStudentEvents as $event)
     <div class="event-card">
-      <div class="img-wrap img-placeholder-5"><div class="event-badge badge-student">Student</div></div>
-      <div class="event-body"><div class="event-date">2 April 2025 · UTM, Skudai</div><h3>Engineering Innovation Hackathon</h3><p>48-hour hackathon where student teams tackle real-world engineering challenges with mentorship from industry professionals.</p><a href="{{ route('student-section-events') }}" class="event-link">Register Now →</a></div>
+      <div class="img-wrap img-placeholder-{{ ($loop->index % 5) + 1 }}"><div class="event-badge badge-student">Student</div></div>
+      <div class="event-body">
+        <div class="event-date">{{ $event->date_display }}@if($event->venue) · {{ $event->venue }}@endif</div>
+        <h3>{{ $event->title }}</h3>
+        <p>{{ Str::limit($event->description, 120) }}</p>
+        <a href="{{ route('student-section-events') }}" class="event-link">Register Now →</a>
+      </div>
     </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-1"><div class="event-badge badge-student">Student</div></div>
-      <div class="event-body"><div class="event-date">18 April 2025 · UPM, Serdang</div><h3>STEM Career Fair 2025</h3><p>Connect with top engineering firms and research institutions. Explore internships, scholarships, and graduate opportunities.</p><a href="{{ route('student-section-events') }}" class="event-link">Learn More →</a></div>
-    </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-2"><div class="event-badge badge-student">Student</div></div>
-      <div class="event-body"><div class="event-date">5 May 2025 · Online</div><h3>Robotics &amp; Automation Webinar Series</h3><p>Six-part online series covering Industry 4.0 technologies. Guest speakers from leading manufacturing and automation companies.</p><a href="{{ route('student-section-events') }}" class="event-link">Register →</a></div>
-    </div>
+    @empty
+    <p style="color:var(--grey);font-size:14px;grid-column:span 3;padding:20px 0">No upcoming student events at this time.</p>
+    @endforelse
   </div>
   <div class="tab-panel events-grid" id="tab-sustain">
+    @forelse ($sustainabilityEvents as $event)
     <div class="event-card">
-      <div class="img-wrap img-placeholder-2"><div class="event-badge badge-sustainability">Green</div></div>
-      <div class="event-body"><div class="event-date">20 March 2025 · Shah Alam</div><h3>River Rehabilitation Project</h3><p>Engineers and students work alongside NGOs to restore Klang River ecosystem through sustainable engineering practices.</p><a href="{{ route('sustainability-events') }}" class="event-link">Volunteer →</a></div>
+      <div class="img-wrap img-placeholder-{{ ($loop->index % 5) + 1 }}"><div class="event-badge badge-sustainability">Green</div></div>
+      <div class="event-body">
+        <div class="event-date">{{ $event->date_display }}@if($event->venue) · {{ $event->venue }}@endif</div>
+        <h3>{{ $event->title }}</h3>
+        <p>{{ Str::limit($event->description, 120) }}</p>
+        <a href="{{ route('sustainability-events') }}" class="event-link">Volunteer →</a>
+      </div>
     </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-4"><div class="event-badge badge-sustainability">Green</div></div>
-      <div class="event-body"><div class="event-date">12 April 2025 · Sabah</div><h3>Renewable Energy Outreach Camp</h3><p>Installing solar panels in rural Sabah communities while educating locals on sustainable energy management.</p><a href="{{ route('sustainability-events') }}" class="event-link">Volunteer →</a></div>
-    </div>
-    <div class="event-card">
-      <div class="img-wrap img-placeholder-3"><div class="event-badge badge-sustainability">Green</div></div>
-      <div class="event-body"><div class="event-date">30 April 2025 · Nationwide</div><h3>YES Green Campus Initiative</h3><p>Campus-wide sustainability audit and zero-waste campaign across 30 Malaysian universities, led by YES student chapters.</p><a href="{{ route('sustainability-events') }}" class="event-link">Volunteer →</a></div>
-    </div>
+    @empty
+    <p style="color:var(--grey);font-size:14px;grid-column:span 3;padding:20px 0">No upcoming sustainability events at this time.</p>
+    @endforelse
   </div>
   <div class="volunteer-card">
     <div class="vc-left">
@@ -469,18 +483,30 @@ footer { background: var(--navy-dark); padding: 60px 60px 0; }
   <div class="section-label" style="color:var(--gold)">Flagship Programmes</div>
   <h2 class="section-title">Our Signature <em style="color:var(--gold)">Events</em></h2>
   <div class="flagship-grid">
+    @php
+      $natsum = $flagshipEvents->firstWhere('short_name', 'NATSUM');
+      $cafeo  = $flagshipEvents->firstWhere('short_name', 'CAFEO');
+    @endphp
     <a href="{{ route('natsum') }}" style="text-decoration:none;">
       <div class="flagship-card">
         <div class="bg" style="background:linear-gradient(135deg,#001f45,#0a4a8c,#1a5fa8)"></div>
         <div class="overlay"></div><div class="flagship-arrow">→</div>
-        <div class="info"><div class="year">Annual · Since 1998</div><h3>NATSUM</h3><p>National Student Summit — Malaysia's largest gathering of engineering and science students, featuring competitions, workshops, and industry immersion.</p></div>
+        <div class="info">
+          <div class="year">{{ $natsum ? $natsum->year . ' · ' . $natsum->location : 'Annual · Since 1998' }}</div>
+          <h3>NATSUM</h3>
+          <p>National Student Summit — Malaysia's largest gathering of engineering and science students, featuring competitions, workshops, and industry immersion.</p>
+        </div>
       </div>
     </a>
     <a href="{{ route('cafeo') }}" style="text-decoration:none;">
       <div class="flagship-card">
         <div class="bg" style="background:linear-gradient(135deg,#1a3a0d,#2d6b1a,#4a8a2a)"></div>
         <div class="overlay"></div><div class="flagship-arrow">→</div>
-        <div class="info"><div class="year">Annual · ASEAN Event</div><h3>CAFEO</h3><p>Conference of ASEAN Federation of Engineering Organisations — representing Malaysia's engineering community at the regional stage.</p></div>
+        <div class="info">
+          <div class="year">{{ $cafeo ? $cafeo->year . ' · ' . $cafeo->location : 'Annual · ASEAN Event' }}</div>
+          <h3>CAFEO</h3>
+          <p>Conference of ASEAN Federation of Engineering Organisations — representing Malaysia's engineering community at the regional stage.</p>
+        </div>
       </div>
     </a>
   </div>

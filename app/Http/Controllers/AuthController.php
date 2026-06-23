@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -12,6 +14,32 @@ class AuthController extends Controller
         return view('login');
     }
 
+    // ── Student branch picker ──────────────────────────────────────────────────
+    public function showStudentPicker()
+    {
+        $branches = Branch::chapters()->orderBy('name')->get(['id', 'name', 'academic_year']);
+        return view('login-student', compact('branches'));
+    }
+
+    public function loginAsStudent(Request $request)
+    {
+        $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+        ]);
+
+        // Prefer the branch_admin; fall back to any member of that branch
+        $user = User::where('branch_id', $request->branch_id)
+            ->where('role', 'branch_admin')
+            ->first()
+            ?? User::where('branch_id', $request->branch_id)->firstOrFail();
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('student.overview');
+    }
+
+    // ── Standard credential login (admin or student with password) ────────────
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -42,6 +70,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->route('home');
     }
 }

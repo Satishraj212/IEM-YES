@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local/temp artifacts (not for deployment)
+/temp-laravel
+/demo-video
+desktop.ini

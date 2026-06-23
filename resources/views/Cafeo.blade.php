@@ -301,17 +301,24 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
       </div>
       <h1>CAFEO</h1>
       <div class="subtitle">Conference of ASEAN Federation of<br/>Engineering Organisations</div>
-      <p>The premier gathering of engineering professionals across 10 ASEAN nations — where Malaysia's young engineers take the regional stage to collaborate, compete, and lead.</p>
+      @if($event?->theme)
+      <div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:16px;opacity:.9">{{ $event->theme }}</div>
+      @endif
+      <p>{{ $event?->description ?? 'The premier gathering of engineering professionals across 10 ASEAN nations — where Malaysia\'s young engineers take the regional stage to collaborate, compete, and lead.' }}</p>
       <div class="hero-cta-row">
+        @if($event?->registration_url)
+        <a href="{{ $event->registration_url }}" target="_blank" class="btn-gold">Register for CAFEO {{ $event->year }} →</a>
+        @else
         <a href="#join" class="btn-gold">How Malaysia Participates →</a>
+        @endif
         <a href="#about" class="btn-ghost">What is CAFEO?</a>
       </div>
     </div>
     <div class="hero-right">
       <div class="asean-panel">
-        <div class="asean-panel-title">AFEO Member Countries — CAFEO 2025</div>
+        <div class="asean-panel-title">AFEO Member Countries — CAFEO {{ $event?->year ?? '2025' }}</div>
         <div class="asean-nations">
-          <div class="nation-item"><span class="nation-flag">🇲🇾</span><div class="nation-info"><div class="name">Malaysia</div><div class="org">IEM (Host 2025)</div></div></div>
+          <div class="nation-item"><span class="nation-flag">🇲🇾</span><div class="nation-info"><div class="name">Malaysia</div><div class="org">IEM (Host {{ $event?->year ?? '2025' }})</div></div></div>
           <div class="nation-item"><span class="nation-flag">🇸🇬</span><div class="nation-info"><div class="name">Singapore</div><div class="org">IES</div></div></div>
           <div class="nation-item"><span class="nation-flag">🇮🇩</span><div class="nation-info"><div class="name">Indonesia</div><div class="org">PII</div></div></div>
           <div class="nation-item"><span class="nation-flag">🇹🇭</span><div class="nation-info"><div class="name">Thailand</div><div class="org">EIT</div></div></div>
@@ -322,7 +329,7 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
           <div class="nation-item"><span class="nation-flag">🇰🇭</span><div class="nation-info"><div class="name">Cambodia</div><div class="org">CEAC</div></div></div>
           <div class="nation-item"><span class="nation-flag">🇱🇦</span><div class="nation-info"><div class="name">Laos</div><div class="org">LAEF</div></div></div>
         </div>
-        <div class="asean-note">CAFEO 2025 is hosted by Malaysia — IEM is the organising body</div>
+        <div class="asean-note">CAFEO {{ $event?->year ?? '2025' }} {{ $event?->location ? '— ' . $event->location : 'is hosted by Malaysia — IEM is the organising body' }}</div>
       </div>
     </div>
   </div>

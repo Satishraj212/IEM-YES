@@ -15,6 +15,13 @@ class OfficialEventController extends Controller
         'Board Meeting', 'Retreat', 'Summit', 'Forum', 'Gala / Dinner', 'Review',
     ];
 
+    const TAGS = [
+        'Annual', 'Board', 'Strategy', 'Summit', 'Leadership', 'Training',
+        'Networking', 'Gala', 'Review', 'Planning', 'Workshop', 'External',
+        'Internal', 'National', 'Regional', 'Sustainability', 'Finance',
+        'Governance', 'Engagement', 'YES Programme',
+    ];
+
     const CAT_CLASSES = [
         'Board Meeting' => 'b-board',
         'Retreat'       => 'b-retreat',
@@ -26,6 +33,8 @@ class OfficialEventController extends Controller
 
     public function index()
     {
+        OfficialEvent::syncStatus();
+
         $events = OfficialEvent::with('branch')
             ->orderBy('start_date')
             ->get()
@@ -36,13 +45,15 @@ class OfficialEventController extends Controller
             'open'     => OfficialEvent::where('status', 'open')->count(),
             'upcoming' => OfficialEvent::where('status', 'upcoming')->count(),
             'past'     => OfficialEvent::where('status', 'past')->count(),
+            'draft'    => OfficialEvent::where('is_published', false)->count(),
         ];
 
-        $branches   = Branch::orderBy('name')->get();
-        $categories = self::CATEGORIES;
-        $catClasses = self::CAT_CLASSES;
+        $branches      = Branch::orderBy('name')->get();
+        $categories    = self::CATEGORIES;
+        $catClasses    = self::CAT_CLASSES;
+        $availableTags = self::TAGS;
 
-        return view('admin.official-events', compact('events', 'counts', 'branches', 'categories', 'catClasses') + [
+        return view('admin.official-events', compact('events', 'counts', 'branches', 'categories', 'catClasses', 'availableTags') + [
             'pageTitle'    => 'Official Board',
             'pageSubtitle' => 'Events',
             'pageDesc'     => 'Manage and publish board-level events',
@@ -57,16 +68,15 @@ class OfficialEventController extends Controller
             'location'         => 'required|string|max:255',
             'start_date'       => 'required|date',
             'end_date'         => 'nullable|date|after_or_equal:start_date',
-            'status'           => 'required|in:open,upcoming,past',
-            'total_seats'      => 'nullable|integer|min:1',
-            'registered_count' => 'nullable|integer|min:0',
+            'start_time'       => 'nullable|string|max:20',
             'branch_name'      => 'nullable|string',
             'organiser'        => 'nullable|string|max:255',
+            'organiser_phone'  => 'nullable|string|max:50',
             'tags'             => 'nullable|array',
             'is_published'     => 'boolean',
             'description'      => 'nullable|string',
             'admin_notes'      => 'nullable|string',
-            'poster_data'      => 'nullable|string', // base64
+            'poster_data'      => 'nullable|string',
         ]);
 
         $branch = Branch::firstOrCreate(['name' => $data['branch_name'] ?? 'National']);
@@ -77,11 +87,13 @@ class OfficialEventController extends Controller
             'location'         => $data['location'],
             'start_date'       => $data['start_date'],
             'end_date'         => $data['end_date'] ?? null,
-            'status'           => $data['status'],
-            'total_seats'      => $data['total_seats'] ?? null,
-            'registered_count' => $data['registered_count'] ?? 0,
+            'start_time'       => $data['start_time'] ?? null,
+            'status'           => 'upcoming',
+            'total_seats'      => null,
+            'registered_count' => 0,
             'branch_id'        => $branch->id,
             'organiser'        => $data['organiser'] ?? null,
+            'organiser_phone'  => $data['organiser_phone'] ?? null,
             'tags'             => $data['tags'] ?? [],
             'is_published'     => $data['is_published'] ?? false,
             'description'      => $data['description'] ?? null,
@@ -93,7 +105,7 @@ class OfficialEventController extends Controller
             $event->save();
         }
 
-        ActivityLog::log('event_created', "New event <strong>{$event->name}</strong> created.", 'var(--gold)');
+        ActivityLog::record($event->branch_id, 'event_created', "New event \"{$event->name}\" created", auth()->id(), $event);
 
         return response()->json(['event' => $this->formatForJs($event->load('branch'))]);
     }
@@ -106,11 +118,11 @@ class OfficialEventController extends Controller
             'location'         => 'sometimes|string|max:255',
             'start_date'       => 'sometimes|date',
             'end_date'         => 'nullable|date',
+            'start_time'       => 'nullable|string|max:20',
             'status'           => 'sometimes|in:open,upcoming,past',
-            'total_seats'      => 'nullable|integer|min:1',
-            'registered_count' => 'nullable|integer|min:0',
             'branch_name'      => 'nullable|string',
             'organiser'        => 'nullable|string|max:255',
+            'organiser_phone'  => 'nullable|string|max:50',
             'tags'             => 'nullable|array',
             'is_published'     => 'sometimes|boolean',
             'description'      => 'nullable|string',
@@ -141,7 +153,7 @@ class OfficialEventController extends Controller
     public function destroy(OfficialEvent $officialEvent)
     {
         $this->deletePoster($officialEvent);
-        ActivityLog::log('event_deleted', "Event <strong>{$officialEvent->name}</strong> was deleted.", 'var(--red)');
+        ActivityLog::record($officialEvent->branch_id, 'event_deleted', "Event \"{$officialEvent->name}\" was deleted", auth()->id(), $officialEvent);
         $officialEvent->delete();
         return response()->json(['success' => true]);
     }
@@ -157,11 +169,13 @@ class OfficialEventController extends Controller
             'location'         => $e->location,
             'start_date'       => $e->start_date?->toDateString(),
             'end_date'         => $e->end_date?->toDateString(),
-            'status'           => $e->status,
+            'start_time'       => $e->start_time,
+            'status'           => $e->effective_status,
             'total_seats'      => $e->total_seats,
             'registered_count' => $e->registered_count,
             'branch_name'      => $e->branch?->name ?? 'National',
             'organiser'        => $e->organiser,
+            'organiser_phone'  => $e->organiser_phone,
             'tags'             => $e->tags ?? [],
             'is_published'     => (bool) $e->is_published,
             'description'      => $e->description,

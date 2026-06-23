@@ -2,12 +2,6 @@
 
 @section('title', 'Official Events')
 
-@section('topbar-actions')
-<button class="btn-primary" onclick="openCreateModal()">
-    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Create Event
-</button>
-@endsection
 
 @section('styles')
 <style>
@@ -127,6 +121,24 @@
 .info-card{background:var(--off);border:1px solid var(--light);border-radius:3px;padding:11px 14px}
 .ic-lbl2{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--grey);margin-bottom:3px}
 .ic-val2{font-size:13px;font-weight:600;color:var(--navy)}
+
+/* ── tags multi-select dropdown ── */
+.tags-dw{position:relative}
+.tags-dd-btn{width:100%;border:1px solid var(--light);background:var(--off);padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-radius:2px;transition:border-color .2s;text-align:left}
+.tags-dd-btn:hover,.tags-dd-btn.open{border-color:var(--navy);background:#fff}
+.tags-dd-btn svg{width:12px;height:12px;stroke:var(--grey);fill:none;stroke-width:2;flex-shrink:0;transition:transform .2s}
+.tags-dd-btn.open svg{transform:rotate(180deg)}
+.tags-dd-panel{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--light);border-top:none;z-index:300;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.tags-dd-panel.open{display:block}
+.tags-dd-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;user-select:none}
+.tags-dd-item:hover{background:var(--off)}
+.tags-dd-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--navy);cursor:pointer;flex-shrink:0}
+.tags-dd-item span{font-size:12px;color:var(--navy)}
+
+/* ── save notes button ── */
+.btn-save-notes{width:100%;margin-top:6px;padding:7px;background:var(--navy);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .15s}
+.btn-save-notes:hover{background:var(--navy-mid)}
+.btn-save-notes svg{width:11px;height:11px;stroke:#fff;fill:none;stroke-width:2}
 </style>
 @endsection
 
@@ -166,6 +178,7 @@
             <button class="tab"        id="tab-open"     onclick="filterTabGlobal('open')">Open ({{ $counts['open'] }})</button>
             <button class="tab"        id="tab-upcoming" onclick="filterTabGlobal('upcoming')">Upcoming ({{ $counts['upcoming'] }})</button>
             <button class="tab"        id="tab-past"     onclick="filterTabGlobal('past')">Past ({{ $counts['past'] }})</button>
+            <button class="tab"        id="tab-draft"    onclick="filterTabGlobal('draft')">Draft ({{ $counts['draft'] }})</button>
         </div>
         <div class="sr">
             <div class="si-wrap">
@@ -217,6 +230,7 @@
                         <div class="fg"><label class="fl">Start Date</label><input class="fi" id="m-date" type="date"/></div>
                         <div class="fg"><label class="fl">End Date (optional)</label><input class="fi" id="m-date-end" type="date"/></div>
                     </div>
+                    <div class="fg"><label class="fl">Time Slot</label><input class="fi" id="m-time" type="text" placeholder="e.g. 9:00 AM – 5:00 PM"/></div>
                     <div class="fg"><label class="fl">Location</label><input class="fi" id="m-loc" type="text" placeholder="e.g. KL Convention Centre"/></div>
                 </div>
                 <div>
@@ -232,16 +246,27 @@
                     </div>
                 </div>
             </div>
-            <div class="f3" style="margin-top:4px">
-                <div class="fg"><label class="fl">Total Seats</label><input class="fi" id="m-seats" type="number" placeholder="Unlimited"/></div>
-                <div class="fg"><label class="fl">Registered</label><input class="fi" id="m-reg" type="number" placeholder="0"/></div>
-                <div class="fg"><label class="fl">Status</label>
-                    <select class="fsel2" id="m-status">
-                        <option value="upcoming">Upcoming</option><option value="open">Open</option><option value="past">Past</option>
-                    </select></div>
+            <div class="f2" style="margin-top:4px">
+                <div class="fg"><label class="fl">Organiser / Contact Person</label><input class="fi" id="m-organiser" type="text" placeholder="e.g. Ahmad Razif Hakim"/></div>
+                <div class="fg"><label class="fl">Organiser Phone / Contact</label><input class="fi" id="m-organiser-phone" type="text" placeholder="e.g. +60 12-345 6789"/></div>
             </div>
-            <div class="fg"><label class="fl">Organiser / Contact Person</label><input class="fi" id="m-organiser" type="text" placeholder="e.g. Ahmad Razif Hakim"/></div>
-            <div class="fg"><label class="fl">Tags (comma separated)</label><input class="fi" id="m-tags" type="text" placeholder="e.g. Annual, Board, Strategy"/></div>
+            <div class="fg">
+                <label class="fl">Tags</label>
+                <div class="tags-dw" id="m-tags-dw">
+                    <button type="button" class="tags-dd-btn" onclick="toggleTagsDrop('m-tags-dw')">
+                        <span class="td-lbl">Select tags…</span>
+                        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="tags-dd-panel" id="m-tags-dw-panel">
+                        @foreach($availableTags as $tag)
+                        <label class="tags-dd-item">
+                            <input type="checkbox" class="td-cb" value="{{ $tag }}" onchange="updateTagsLabel('m-tags-dw')">
+                            <span>{{ $tag }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
             <div class="modal-section-div">
                 <div class="modal-section-lbl">Description &amp; Notes</div>
                 <div class="fg"><label class="fl">Public-Facing Description</label><textarea class="fta" id="m-desc" placeholder="Describe the event for attendees…"></textarea></div>
@@ -268,9 +293,10 @@
 
 @section('scripts')
 <script>
-const EVENTS = @json($events);
-const CAT_CLASS = @json($catClasses);
-const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+const EVENTS        = @json($events);
+const CAT_CLASS     = @json($catClasses);
+const AVAILABLE_TAGS = @json($availableTags);
+const CSRF          = document.querySelector('meta[name="csrf-token"]').content;
 
 let expandedId = null, currentFilter = 'all', currentSearch = '', currentSort = 'date';
 let pubState = false, modalPoster = null;
@@ -278,7 +304,8 @@ let pubState = false, modalPoster = null;
 /* ── RENDER ── */
 function renderList() {
     let rows = [...EVENTS];
-    if (currentFilter !== 'all') rows = rows.filter(e => e.status === currentFilter);
+    if (currentFilter === 'draft')      rows = rows.filter(e => !e.is_published);
+    else if (currentFilter !== 'all')  rows = rows.filter(e => e.status === currentFilter);
     if (currentSearch) rows = rows.filter(e =>
         e.name.toLowerCase().includes(currentSearch) || e.location.toLowerCase().includes(currentSearch));
     if (currentSort === 'name') rows.sort((a,b) => a.name.localeCompare(b.name));
@@ -308,9 +335,9 @@ function buildRow(e) {
         <div class="ev-info-wrap">
           <div class="ev-name">${e.name}</div>
           <div class="ev-meta">
-            <div class="ev-meta-item"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${formatDate(e.start_date)}</div>
+            <div class="ev-meta-item"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${formatDate(e.start_date)}${e.start_time ? ' · ' + e.start_time : ''}</div>
             <div class="ev-meta-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${e.location}</div>
-            <div class="ev-meta-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${e.organiser || '—'}</div>
+            <div class="ev-meta-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${e.organiser || '—'}${e.organiser_phone ? ' · ' + e.organiser_phone : ''}</div>
           </div>
         </div>
         <div class="ev-right">
@@ -319,6 +346,7 @@ function buildRow(e) {
           ${pubHtml}
           <div class="abtns" onclick="event.stopPropagation()">
             <button class="abtn" title="View"   onclick="openPanel('view',${e.id})"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <a class="abtn" title="Audit trail" href="/dashboard/admin/activity?subject_type=App%5CModels%5COfficialEvent&subject_id=${e.id}"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></a>
             <button class="abtn" title="Edit"   onclick="openPanel('edit',${e.id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
             <button class="abtn del" title="Delete" onclick="openPanel('delete',${e.id})"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
           </div>
@@ -345,7 +373,10 @@ function buildRow(e) {
             <div class="sec-lbl"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Public Description</div>
             <div class="desc-text">${e.description || '<span style="color:#bbb;font-style:italic">No description added yet.</span>'}</div>
             <div class="sec-lbl" style="margin-top:14px"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin Notes</div>
-            <textarea class="notes-area" placeholder="Add internal notes…" onchange="saveNote(${e.id},this.value)">${e.admin_notes || ''}</textarea>
+            <textarea class="notes-area" id="note-${e.id}" placeholder="Add internal notes…">${e.admin_notes || ''}</textarea>
+            <button class="btn-save-notes" onclick="saveNote(${e.id})">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save Notes
+            </button>
           </div>
           <div class="info-col">
             <div class="sec-lbl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Event Info</div>
@@ -353,9 +384,10 @@ function buildRow(e) {
               <div class="ic ic-full"><div class="ic-lbl">Category</div><div class="ic-val"><span class="badge ${CAT_CLASS[e.category]||'b-board'}">${e.category}</span></div></div>
               <div class="ic"><div class="ic-lbl">Date</div><div class="ic-val">${formatDate(e.start_date)}</div></div>
               <div class="ic"><div class="ic-lbl">Branch</div><div class="ic-val">${e.branch_name || 'National'}</div></div>
+              ${e.start_time ? `<div class="ic ic-full"><div class="ic-lbl">Time Slot</div><div class="ic-val">${e.start_time}</div></div>` : ''}
               <div class="ic ic-full"><div class="ic-lbl">Location</div><div class="ic-val">${e.location}</div></div>
-              <div class="ic ic-full"><div class="ic-lbl">Organiser</div><div class="ic-val">${e.organiser || '—'}</div></div>
-              ${e.total_seats ? `<div class="ic ic-full"><div class="ic-lbl">Registration</div><div class="ic-val">${e.registered_count} / ${e.total_seats} <span style="font-weight:400;color:var(--grey);font-size:10px">(${Math.round(e.registered_count/e.total_seats*100)}%)</span></div><div class="seat-prog"><div class="seat-fill-bar${e.registered_count/e.total_seats>=1?' crit':e.registered_count/e.total_seats>=.75?' warn':''}" style="width:${Math.min(100,Math.round(e.registered_count/e.total_seats*100))}%"></div></div></div>` : `<div class="ic ic-full"><div class="ic-lbl">Seats</div><div class="ic-val" style="color:var(--grey);font-weight:400">No limit</div></div>`}
+              <div class="ic"><div class="ic-lbl">Organiser</div><div class="ic-val">${e.organiser || '—'}</div></div>
+              <div class="ic"><div class="ic-lbl">Phone</div><div class="ic-val">${e.organiser_phone || '—'}</div></div>
             </div>
             <div class="pub-row">
               <button class="toggle${e.is_published?' on':''}" id="rpub-${e.id}" onclick="toggleInlinePub(${e.id})" type="button"><div class="toggle-knob"></div></button>
@@ -385,10 +417,57 @@ function formatDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateStri
 /* ── TOGGLE ROW ── */
 function toggleRow(id){ expandedId = expandedId === id ? null : id; renderList(); }
 
+/* ── TAGS DROPDOWN HELPERS ── */
+function toggleTagsDrop(wrapperId) {
+    const panel = document.getElementById(wrapperId + '-panel');
+    const btn   = document.querySelector('#' + wrapperId + ' .tags-dd-btn');
+    const isOpen = panel.classList.contains('open');
+    document.querySelectorAll('.tags-dd-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.closest('.tags-dw')?.querySelector('.tags-dd-btn')?.classList.remove('open');
+    });
+    if (!isOpen) { panel.classList.add('open'); btn?.classList.add('open'); }
+}
+function updateTagsLabel(wrapperId) {
+    const tags = getTagsFromDrop(wrapperId);
+    const lbl  = document.querySelector('#' + wrapperId + ' .td-lbl');
+    if (lbl) lbl.textContent = tags.length ? tags.join(', ') : 'Select tags…';
+}
+function getTagsFromDrop(wrapperId) {
+    return Array.from(document.querySelectorAll('#' + wrapperId + '-panel .td-cb:checked')).map(cb => cb.value);
+}
+function setTagsInDrop(wrapperId, tags) {
+    document.querySelectorAll('#' + wrapperId + '-panel .td-cb').forEach(cb => {
+        cb.checked = tags.includes(cb.value);
+    });
+    updateTagsLabel(wrapperId);
+}
+function buildTagsDropdown(wrapperId, selectedTags) {
+    return `<div class="tags-dw" id="${wrapperId}">
+      <button type="button" class="tags-dd-btn" onclick="toggleTagsDrop('${wrapperId}')">
+        <span class="td-lbl">${selectedTags.length ? selectedTags.join(', ') : 'Select tags…'}</span>
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="tags-dd-panel" id="${wrapperId}-panel">
+        ${AVAILABLE_TAGS.map(t => `<label class="tags-dd-item">
+          <input type="checkbox" class="td-cb" value="${t}" ${selectedTags.includes(t)?'checked':''} onchange="updateTagsLabel('${wrapperId}')">
+          <span>${t}</span></label>`).join('')}
+      </div>
+    </div>`;
+}
+document.addEventListener('click', e => {
+    if (!e.target.closest('.tags-dw')) {
+        document.querySelectorAll('.tags-dd-panel.open').forEach(p => {
+            p.classList.remove('open');
+            p.closest('.tags-dw')?.querySelector('.tags-dd-btn')?.classList.remove('open');
+        });
+    }
+});
+
 /* ── FILTERS ── */
 function filterTabGlobal(s){
     currentFilter = s;
-    ['all','open','upcoming','past'].forEach(x => document.getElementById('tab-'+x)?.classList.remove('active'));
+    ['all','open','upcoming','past','draft'].forEach(x => document.getElementById('tab-'+x)?.classList.remove('active'));
     document.getElementById('tab-'+s)?.classList.add('active');
     expandedId = null; renderList();
 }
@@ -433,10 +512,16 @@ function clearInlinePoster(id){
 }
 
 /* ── INLINE PUBLISH ── */
+function computeStatus(e){
+    const cutoff = e.end_date || e.start_date;
+    if(cutoff && new Date(cutoff) < new Date(new Date().toDateString())) return 'past';
+    return e.is_published ? 'open' : 'upcoming';
+}
 function toggleInlinePub(id){
     const idx = EVENTS.findIndex(x=>x.id===id);
     if(idx < 0) return;
     EVENTS[idx].is_published = !EVENTS[idx].is_published;
+    EVENTS[idx].status = computeStatus(EVENTS[idx]);
     const btn = document.getElementById('rpub-'+id);
     const lbl = document.getElementById('rpub-lbl-'+id);
     if(btn) btn.classList.toggle('on', EVENTS[idx].is_published);
@@ -445,10 +530,13 @@ function toggleInlinePub(id){
     showToast(EVENTS[idx].is_published ? 'Event published' : 'Event unpublished', EVENTS[idx].is_published ? 'success' : '');
     renderList();
 }
-function saveNote(id, val){
+async function saveNote(id){
+    const el  = document.getElementById('note-' + id);
+    const val = el ? el.value : '';
     const idx = EVENTS.findIndex(x=>x.id===id);
     if(idx > -1) EVENTS[idx].admin_notes = val;
-    apiPatch(id, {admin_notes: val});
+    await apiPatch(id, {admin_notes: val});
+    showToast('Notes saved', 'success');
 }
 
 /* ── API CALLS ── */
@@ -493,7 +581,6 @@ function closePanel(){
 function renderView(e){
     document.getElementById('spModeBadge').textContent = 'View Details';
     document.getElementById('spTitle').textContent = e.name;
-    const p = e.total_seats ? Math.round(e.registered_count/e.total_seats*100) : 0;
     document.getElementById('spBody').innerHTML = `
         ${e.poster_url?`<div style="margin-bottom:16px;border-radius:3px;overflow:hidden;max-height:200px"><img src="${e.poster_url}" style="width:100%;object-fit:cover"/></div>`:''}
         <div class="info-grid">
@@ -504,40 +591,26 @@ function renderView(e){
             <div class="info-card"><div class="ic-lbl2">Organiser</div><div class="ic-val2">${e.organiser||'—'}</div></div>
             <div class="info-card"><div class="ic-lbl2">Visibility</div><div class="ic-val2">${e.is_published?'<span style="color:var(--green);font-weight:700">● Live</span>':'<span style="color:#aaa">○ Draft</span>'}</div></div>
         </div>
-        ${e.total_seats?`<div class="pf-row"><span class="pf-lbl">Registration</span><div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:16px;font-weight:600;color:var(--navy)">${e.registered_count}</span><span style="font-size:12px;color:var(--grey)">/ ${e.total_seats} (${p}%)</span></div><div style="height:5px;background:var(--light);border-radius:3px;margin-top:7px;overflow:hidden"><div style="height:100%;border-radius:3px;background:var(--gold);width:${p}%"></div></div></div>`
-        :'<div class="pf-row"><span class="pf-lbl">Registration</span><div class="pf-val muted">No seat limit</div></div>'}
         <hr class="pf-divider"/>
         <div class="pf-row"><span class="pf-lbl">Description</span><div class="pf-val muted">${e.description||'—'}</div></div>
         ${e.admin_notes?`<hr class="pf-divider"/><div class="pf-row"><span class="pf-lbl">Admin Notes</span><div style="background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:3px;padding:10px 14px;font-size:12px;color:#78350f;line-height:1.65">${e.admin_notes}</div></div>`:''}
         <hr class="pf-divider"/>
-        <div class="pf-row"><span class="pf-lbl">Tags</span><div class="tag-wrap">${(e.tags||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('')||'<span style="font-size:11px;color:#bbb">None</span>'}</div></div>
-        <hr class="pf-divider"/>
-        <div class="pf-row"><span class="pf-lbl">Pipeline</span>
-          <div class="pipeline">
-            <div class="pip-step done"><div class="pip-dot"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="pip-lbl">Created</div></div>
-            <div class="pip-step ${e.is_published?'done':'current'}"><div class="pip-dot"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div class="pip-lbl">Reviewed</div></div>
-            <div class="pip-step ${e.is_published?'current':''}"><div class="pip-dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div class="pip-lbl">Published</div></div>
-          </div>
-        </div>`;
+        <div class="pf-row"><span class="pf-lbl">Tags</span><div class="tag-wrap">${(e.tags||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('')||'<span style="font-size:11px;color:#bbb">None</span>'}</div></div>`;
     document.getElementById('spFoot').innerHTML = `<button class="btn-ghost" onclick="closePanel()">Close</button><button class="btn-prim" onclick="openPanel('edit',${e.id})">Edit Event</button>`;
 }
 
 function renderEditPanel(e){
     document.getElementById('spModeBadge').textContent = 'Edit Event';
     document.getElementById('spTitle').textContent = e.name;
-    const catOpts = @json($categories);
+    const catOpts    = @json($categories);
     const branchOpts = @json($branches->pluck('name'));
     document.getElementById('spBody').innerHTML = `
         <div class="pf-row"><label class="pf-lbl">Event Title</label><input class="pf-input" id="ep-name" type="text" value="${e.name}"/></div>
         <div class="pf-grid2">
-            <div class="pf-row"><label class="pf-lbl">Date</label><input class="pf-input" id="ep-date" type="date" value="${e.start_date?.split('T')[0]||''}"/></div>
-            <div class="pf-row"><label class="pf-lbl">Status</label>
-                <select class="pf-select" id="ep-status">
-                    <option value="upcoming" ${e.status==='upcoming'?'selected':''}>Upcoming</option>
-                    <option value="open" ${e.status==='open'?'selected':''}>Open</option>
-                    <option value="past" ${e.status==='past'?'selected':''}>Past</option>
-                </select></div>
+            <div class="pf-row"><label class="pf-lbl">Start Date</label><input class="pf-input" id="ep-date" type="date" value="${e.start_date?.split('T')[0]||''}"/></div>
+            <div class="pf-row"><label class="pf-lbl">End Date</label><input class="pf-input" id="ep-date-end" type="date" value="${e.end_date?.split('T')[0]||''}"/></div>
         </div>
+        <div class="pf-row"><label class="pf-lbl">Time Slot</label><input class="pf-input" id="ep-time" type="text" value="${e.start_time||''}" placeholder="e.g. 9:00 AM – 5:00 PM"/></div>
         <div class="pf-row"><label class="pf-lbl">Location</label><input class="pf-input" id="ep-loc" type="text" value="${e.location}"/></div>
         <div class="pf-grid2">
             <div class="pf-row"><label class="pf-lbl">Category</label>
@@ -546,11 +619,12 @@ function renderEditPanel(e){
                 <select class="pf-select" id="ep-branch">${branchOpts.map(b=>`<option ${e.branch_name===b?'selected':''}>${b}</option>`).join('')}</select></div>
         </div>
         <div class="pf-grid2">
-            <div class="pf-row"><label class="pf-lbl">Total Seats</label><input class="pf-input" id="ep-seats" type="number" value="${e.total_seats||''}"/></div>
-            <div class="pf-row"><label class="pf-lbl">Registered</label><input class="pf-input" id="ep-reg" type="number" value="${e.registered_count||0}"/></div>
+            <div class="pf-row"><label class="pf-lbl">Organiser</label><input class="pf-input" id="ep-org" type="text" value="${e.organiser||''}"/></div>
+            <div class="pf-row"><label class="pf-lbl">Organiser Phone</label><input class="pf-input" id="ep-org-phone" type="text" value="${e.organiser_phone||''}" placeholder="+60 12-345 6789"/></div>
         </div>
-        <div class="pf-row"><label class="pf-lbl">Organiser</label><input class="pf-input" id="ep-org" type="text" value="${e.organiser||''}"/></div>
-        <div class="pf-row"><label class="pf-lbl">Tags (comma separated)</label><input class="pf-input" id="ep-tags" type="text" value="${(e.tags||[]).join(', ')}"/></div>
+        <div class="pf-row"><label class="pf-lbl">Tags</label>
+            ${buildTagsDropdown('ep-tags-dw', e.tags || [])}
+        </div>
         <div class="pf-row"><label class="pf-lbl">Description</label><textarea class="pf-textarea" id="ep-desc">${e.description||''}</textarea></div>
         <div class="pf-row"><label class="pf-lbl">Admin Notes</label><textarea class="pf-textarea" id="ep-notes" style="min-height:60px">${e.admin_notes||''}</textarea></div>
         <div class="pf-row">
@@ -566,22 +640,23 @@ async function savePanelEdit(id){
     const idx = EVENTS.findIndex(x=>x.id===id);
     if(idx < 0) return;
     const payload = {
-        name:         document.getElementById('ep-name').value.trim(),
-        location:     document.getElementById('ep-loc').value.trim(),
-        start_date:   document.getElementById('ep-date').value,
-        status:       document.getElementById('ep-status').value,
-        category:     document.getElementById('ep-cat').value,
-        branch_name:  document.getElementById('ep-branch').value,
-        organiser:    document.getElementById('ep-org').value.trim(),
-        description:  document.getElementById('ep-desc').value.trim(),
-        admin_notes:  document.getElementById('ep-notes').value.trim(),
-        is_published: document.getElementById('ep-pub').classList.contains('on'),
-        total_seats:  document.getElementById('ep-seats').value || null,
-        registered_count: document.getElementById('ep-reg').value || 0,
-        tags:         document.getElementById('ep-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+        name:            document.getElementById('ep-name').value.trim(),
+        location:        document.getElementById('ep-loc').value.trim(),
+        start_date:      document.getElementById('ep-date').value,
+        end_date:        document.getElementById('ep-date-end').value || null,
+        start_time:      document.getElementById('ep-time').value.trim() || null,
+        category:        document.getElementById('ep-cat').value,
+        branch_name:     document.getElementById('ep-branch').value,
+        organiser:       document.getElementById('ep-org').value.trim(),
+        organiser_phone: document.getElementById('ep-org-phone').value.trim() || null,
+        description:     document.getElementById('ep-desc').value.trim(),
+        admin_notes:     document.getElementById('ep-notes').value.trim(),
+        is_published:    document.getElementById('ep-pub').classList.contains('on'),
+        tags:            getTagsFromDrop('ep-tags-dw'),
     };
     await apiPatch(id, payload);
     Object.assign(EVENTS[idx], payload);
+    EVENTS[idx].status = computeStatus(EVENTS[idx]);
     closePanel(); renderList();
     showToast('Event updated successfully','success');
 }
@@ -646,26 +721,26 @@ async function submitModal(){
     if(!name){ showToast('Event title is required','danger'); return; }
     const payload = {
         name,
-        category:    document.getElementById('m-cat').value,
-        location:    document.getElementById('m-loc').value.trim()||'TBC',
-        start_date:  document.getElementById('m-date').value||new Date().toISOString().split('T')[0],
-        end_date:    document.getElementById('m-date-end').value||null,
-        status:      document.getElementById('m-status').value,
-        total_seats: document.getElementById('m-seats').value?parseInt(document.getElementById('m-seats').value):null,
-        registered_count: parseInt(document.getElementById('m-reg').value)||0,
-        branch_name: document.getElementById('m-branch').value,
-        organiser:   document.getElementById('m-organiser').value.trim()||'Super Admin',
-        tags:        document.getElementById('m-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
-        is_published: pubState,
-        poster_data: modalPoster,
-        admin_notes: document.getElementById('m-notes').value.trim(),
-        description: document.getElementById('m-desc').value.trim(),
+        category:        document.getElementById('m-cat').value,
+        location:        document.getElementById('m-loc').value.trim()||'TBC',
+        start_date:      document.getElementById('m-date').value||new Date().toISOString().split('T')[0],
+        end_date:        document.getElementById('m-date-end').value||null,
+        start_time:      document.getElementById('m-time').value.trim()||null,
+        branch_name:     document.getElementById('m-branch').value,
+        organiser:       document.getElementById('m-organiser').value.trim()||null,
+        organiser_phone: document.getElementById('m-organiser-phone').value.trim()||null,
+        tags:            getTagsFromDrop('m-tags-dw'),
+        is_published:    pubState,
+        poster_data:     modalPoster,
+        admin_notes:     document.getElementById('m-notes').value.trim(),
+        description:     document.getElementById('m-desc').value.trim(),
     };
-    const res = await apiCreate(payload);
+    const res  = await apiCreate(payload);
     const data = await res.json();
     EVENTS.unshift(data.event || {...payload, id: Date.now()});
-    ['m-name','m-loc','m-seats','m-reg','m-organiser','m-tags','m-desc','m-notes','m-date','m-date-end']
+    ['m-name','m-loc','m-organiser','m-organiser-phone','m-time','m-desc','m-notes','m-date','m-date-end']
         .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    setTagsInDrop('m-tags-dw', []);
     pubState = false; modalPoster = null;
     document.getElementById('m-pub-toggle').classList.remove('on');
     document.getElementById('m-pub-lbl').textContent = 'Draft — not yet published';
@@ -675,6 +750,8 @@ async function submitModal(){
     showToast('Event created successfully','success');
 }
 
+// Correct any stale DB statuses in the JS array on every page paint
+EVENTS.forEach(e => { e.status = computeStatus(e); });
 renderList();
 </script>
 @endsection

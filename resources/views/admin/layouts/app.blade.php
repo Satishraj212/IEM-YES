@@ -293,8 +293,8 @@ body{font-family:'DM Sans',sans-serif;color:#222;background:var(--off);display:f
   body{background:#fff}
 }
 
-@yield('styles')
 </style>
+@yield('styles')
 </head>
 <body>
 
@@ -305,7 +305,8 @@ body{font-family:'DM Sans',sans-serif;color:#222;background:var(--off);display:f
     {{-- TOP BAR ── ─────────────────────────────────── --}}
     @php
         $nbStudentPending = \App\Models\StudentEventSubmission::where('stage','pending')->count();
-        $nbTotal = $nbStudentPending;
+        $nbReportsPending = \App\Models\AnnualReport::pending()->count();
+        $nbTotal = $nbStudentPending + $nbReportsPending;
     @endphp
     <div class="topbar">
         <div class="tb-left">
@@ -337,8 +338,9 @@ body{font-family:'DM Sans',sans-serif;color:#222;background:var(--off);display:f
                         <button class="nd-clear" onclick="markAllRead()">Mark all read</button>
                     </div>
 
-                    @if($nbStudentPending > 0)
+                    @if($nbTotal > 0)
                     <div class="nd-group-lbl">Requires Action</div>
+                    @if($nbStudentPending > 0)
                     <a href="{{ route('admin.student-section-events-admin') }}" class="nd-item" onclick="closeNotif()">
                         <div class="nd-icon" style="background:var(--amber)">
                             <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
@@ -349,6 +351,19 @@ body{font-family:'DM Sans',sans-serif;color:#222;background:var(--off);display:f
                         </div>
                         <span class="nd-count" style="background:var(--amber-l);color:var(--amber)">{{ $nbStudentPending }}</span>
                     </a>
+                    @endif
+                    @if($nbReportsPending > 0)
+                    <a href="{{ route('admin.annual-reports') }}" class="nd-item" onclick="closeNotif()">
+                        <div class="nd-icon" style="background:var(--blue)">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <div class="nd-body">
+                            <div class="nd-text">{{ $nbReportsPending }} annual report{{ $nbReportsPending !== 1 ? 's' : '' }} under review</div>
+                            <div class="nd-sub">Chapter submissions awaiting review</div>
+                        </div>
+                        <span class="nd-count" style="background:var(--blue-l);color:var(--blue)">{{ $nbReportsPending }}</span>
+                    </a>
+                    @endif
                     <hr class="nd-divider"/>
                     @endif
 
@@ -361,16 +376,6 @@ body{font-family:'DM Sans',sans-serif;color:#222;background:var(--off);display:f
                             <div class="nd-text">Annual Reports</div>
                             <div class="nd-sub">Review chapter submissions</div>
                         </div>
-                    </a>
-                    <a href="{{ route('admin.annual-reports') }}" class="nd-item" onclick="closeNotif()">
-                        <div class="nd-icon" style="background:var(--green)">
-                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        </div>
-                        <div class="nd-body">
-                            <div class="nd-text">Annual Reports</div>
-                            <div class="nd-sub">5 chapters under review</div>
-                        </div>
-                        <span class="nd-count" style="background:var(--blue-l);color:var(--blue)">5</span>
                     </a>
                     <a href="{{ route('admin.awards') }}" class="nd-item" onclick="closeNotif()">
                         <div class="nd-icon" style="background:var(--gold)">

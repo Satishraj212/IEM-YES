@@ -47,12 +47,47 @@
 .req-comment textarea{width:100%;border:1px solid var(--light);background:var(--off);padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--navy);outline:none;border-radius:3px;min-height:64px;resize:vertical}
 .req-comment textarea:focus{border-color:var(--navy);background:#fff}
 .req-actions{display:flex;align-items:flex-end;gap:8px;flex-shrink:0;padding-top:18px}
+.req-audit{border-top:1px solid var(--light);margin-top:16px;padding-top:12px}
+.req-audit-link{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--grey);text-decoration:none;transition:color .15s}
+.req-audit-link:hover{color:var(--navy)}
+.req-audit-link svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8}
 
 /* ── STATUS BADGE COLUMN ── */
 .status-pending{background:var(--amber-l);color:var(--amber);border:1px solid var(--amber-border)}
 .status-approved{background:var(--green-bg);color:#166534;border:1px solid var(--green-border)}
 .status-rejected{background:var(--red-l);color:var(--red);border:1px solid rgba(192,57,43,.15)}
 .status-info{background:var(--blue-l);color:var(--blue);border:1px solid rgba(29,78,216,.2)}
+
+/* ── PIPELINE ── */
+.bpipe{display:flex;align-items:flex-start;padding:18px 20px 4px}
+.bp{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.bp::after{content:'';position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--light);z-index:0}
+.bp:last-child::after{display:none}
+.bp-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--light);background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}
+.bp-dot svg{width:12px;height:12px;stroke:var(--grey);fill:none;stroke-width:2.5}
+.bp-dot.done{background:var(--green);border-color:var(--green)}
+.bp-dot.done svg{stroke:#fff}
+.bp-dot.active{background:var(--gold);border-color:var(--gold)}
+.bp-dot.active svg{stroke:var(--navy-dark)}
+.bp-dot.rejected{background:var(--red);border-color:var(--red)}
+.bp-dot.rejected svg{stroke:#fff}
+.bp-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--grey);margin-top:6px}
+.bp-lbl.done{color:#166534}.bp-lbl.active{color:var(--amber)}.bp-lbl.rejected{color:var(--red)}
+
+/* ── DOCUMENTS ── */
+.req-docs{padding:16px 20px;border-bottom:1px solid var(--light)}
+.doc-strip{display:flex;gap:10px;flex-wrap:wrap}
+.doc-chip{display:flex;align-items:center;gap:9px;background:var(--off);border:1px solid var(--light);border-radius:3px;padding:9px 12px;text-decoration:none;transition:border-color .15s,background .15s}
+.doc-chip:hover{border-color:var(--navy);background:#fff}
+.doc-chip svg{width:15px;height:15px;stroke:var(--navy);fill:none;stroke-width:2;flex-shrink:0}
+.doc-chip span{display:flex;flex-direction:column;line-height:1.3}
+.doc-chip strong{font-size:11px;color:var(--navy)}
+.doc-chip em{font-size:10px;color:var(--grey);font-style:normal}
+
+/* ── REJECT MODAL ── */
+.bmodal{display:none;position:fixed;inset:0;background:rgba(0,31,69,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.bmodal.open{display:flex}
+.bmodal-box{background:#fff;border-radius:6px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 
 /* ── EMPTY ── */
 .empty-state{text-align:center;padding:60px 20px;background:#fff;border:1px solid var(--light);border-radius:4px}
@@ -75,26 +110,26 @@
     <div class="sc">
         <div class="sc-bar" style="background:var(--amber)"></div>
         <div class="sc-lbl">Pending Review</div>
-        <div class="sc-val">7</div>
+        <div class="sc-val">{{ $stats['pending'] }}</div>
         <div class="sc-sub">Awaiting admin action</div>
     </div>
     <div class="sc">
         <div class="sc-bar" style="background:var(--green)"></div>
         <div class="sc-lbl">Approved</div>
-        <div class="sc-val">12</div>
-        <div class="sc-sub">This academic year</div>
+        <div class="sc-val">{{ $stats['approved'] }}</div>
+        <div class="sc-sub">All time</div>
     </div>
     <div class="sc">
         <div class="sc-bar" style="background:var(--red)"></div>
         <div class="sc-lbl">Rejected</div>
-        <div class="sc-val">3</div>
+        <div class="sc-val">{{ $stats['rejected'] }}</div>
         <div class="sc-sub">Returned for revision</div>
     </div>
     <div class="sc">
         <div class="sc-bar" style="background:var(--navy)"></div>
         <div class="sc-lbl">Total Approved (RM)</div>
-        <div class="sc-val">48k</div>
-        <div class="sc-sub">RM 48,250 disbursed</div>
+        <div class="sc-val">{{ $stats['total_approved_rm'] >= 1000 ? number_format($stats['total_approved_rm'] / 1000, 1) . 'k' : number_format($stats['total_approved_rm'], 0) }}</div>
+        <div class="sc-sub">RM {{ number_format($stats['unused_rm'], 2) }} unused (approved − reimbursed)</div>
     </div>
 </div>
 
@@ -109,7 +144,6 @@
         <option value="pending">Pending</option>
         <option value="approved">Approved</option>
         <option value="rejected">Rejected</option>
-        <option value="more-info">More Info Needed</option>
     </select>
     <select class="fsel" id="req-sort" onchange="filterRequests()">
         <option value="newest">Newest First</option>
@@ -122,307 +156,278 @@
 {{-- Request List --}}
 <div class="req-list" id="req-list">
 
-    {{-- Request 1 - Pending --}}
-    <div class="req-card" data-status="pending" data-chapter="yes utm johor" data-amount="4500">
-        <div class="req-card-head" onclick="toggleReq(this)">
-            <div class="req-left">
-                <div class="req-title">STEM Career Fair 2025 — Budget Request</div>
-                <div class="req-meta">
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        YES UTM Johor
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        Submitted 24 Apr 2025
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                        Est. 400 attendees
-                    </span>
-                    <span class="badge b-pending" style="font-size:9px">Pending Review</span>
-                </div>
-            </div>
-            <div class="req-right">
-                <div>
-                    <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--grey);text-align:right;margin-bottom:2px">Requested</div>
-                    <div class="req-amount">RM 4,500</div>
-                </div>
-                <svg class="req-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+@forelse ($budgets as $budget)
+@php
+    $chapterName  = $budget->event?->branch?->identity_name ?? 'Unknown Chapter';
+    $chapterInst  = $budget->event?->branch?->identity_institution;
+    $chapterSlug  = strtolower(str_replace([' ', '_'], '-', $chapterName));
+    $amountNum    = (float) ($budget->status === 'approved' ? ($budget->total_approved ?? $budget->total_requested) : $budget->total_requested);
+    $badgeClass   = match($budget->status) { 'approved' => 'b-approved', 'rejected' => 'b-rejected', default => 'b-pending' };
+    $badgeLabel   = match($budget->status) { 'approved' => 'Approved', 'rejected' => 'Rejected', default => 'Pending Review' };
+    $amountColor  = match($budget->status) { 'approved' => 'color:var(--green)', 'rejected' => 'color:var(--red)', default => '' };
+    $amountLabel  = $budget->status === 'approved' ? 'Approved' : 'Requested';
+@endphp
+<div class="req-card" data-status="{{ $budget->status }}" data-chapter="{{ $chapterSlug }}" data-amount="{{ $amountNum }}">
+    <div class="req-card-head" onclick="toggleReq(this)">
+        <div class="req-left">
+            <div class="req-title">{{ $budget->event?->title ?? 'Untitled Event' }} — Budget Request</div>
+            <div class="req-meta">
+                <span class="req-meta-item">
+                    <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                    {{ $chapterName }}@if($chapterInst) <span style="color:var(--grey)">· {{ $chapterInst }}</span>@endif
+                </span>
+                <span class="req-meta-item">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Submitted {{ $budget->created_at->format('j M Y') }}
+                    @if($budget->status !== 'pending') · {{ ucfirst($budget->status) }} {{ $budget->updated_at->format('j M Y') }}@endif
+                </span>
+                <span class="badge {{ $badgeClass }}" style="font-size:9px">{{ $badgeLabel }}</span>
             </div>
         </div>
-
-        <div class="req-body">
-            <div class="req-grid">
-                <div class="req-col">
-                    <div class="rc-label">Event Details</div>
-                    <div style="font-size:12px;color:#444;line-height:1.65">
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Event:</strong> STEM Career Fair 2025</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Date:</strong> 14 Jun 2025</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Venue:</strong> UTM Faculty of Engineering, Johor Bahru</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Type:</strong> Career Fair / Industry Networking</div>
-                        <div><strong style="color:var(--navy)">Industry Partners:</strong> 12 companies confirmed</div>
-                    </div>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Budget Breakdown</div>
-                    <table class="blt">
-                        <tr><td>Venue & Setup</td><td>RM 1,200</td></tr>
-                        <tr><td>Printing & Materials</td><td>RM 600</td></tr>
-                        <tr><td>Catering (400 pax)</td><td>RM 1,800</td></tr>
-                        <tr><td>Photography</td><td>RM 500</td></tr>
-                        <tr><td>Miscellaneous</td><td>RM 400</td></tr>
-                        <tr><td><strong>Total Requested</strong></td><td><strong>RM 4,500</strong></td></tr>
-                    </table>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Supporting Documents</div>
-                    <div style="display:flex;flex-direction:column;gap:8px">
-                        <div style="display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--light);padding:10px 12px;border-radius:3px">
-                            <div style="width:30px;height:30px;background:#fff;border:1px solid var(--light);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            </div>
-                            <div style="flex:1;min-width:0">
-                                <div style="font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">event_proposal_stem_fair_2025.pdf</div>
-                                <div style="font-size:10px;color:var(--grey)">PDF · 1.2 MB</div>
-                            </div>
-                            <button style="padding:5px 10px;background:var(--navy-dark);color:#fff;border:none;cursor:pointer;font-size:9px;font-weight:700;border-radius:2px">View</button>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--light);padding:10px 12px;border-radius:3px">
-                            <div style="width:30px;height:30px;background:#fff;border:1px solid var(--light);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            </div>
-                            <div style="flex:1;min-width:0">
-                                <div style="font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">budget_breakdown_detailed.xlsx</div>
-                                <div style="font-size:10px;color:var(--grey)">XLSX · 84 KB</div>
-                            </div>
-                            <button style="padding:5px 10px;background:var(--navy-dark);color:#fff;border:none;cursor:pointer;font-size:9px;font-weight:700;border-radius:2px">View</button>
-                        </div>
-                    </div>
-                </div>
+        <div class="req-right">
+            <div>
+                <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--grey);text-align:right;margin-bottom:2px">{{ $amountLabel }}</div>
+                <div class="req-amount" style="{{ $amountColor }}">RM {{ number_format($amountNum, 2) }}</div>
             </div>
-            <div class="req-foot">
-                <div class="req-comment">
-                    <label>Admin Notes (optional — sent to chapter)</label>
-                    <textarea placeholder="Add a note or reason for rejection…"></textarea>
-                </div>
-                <div class="req-actions">
-                    <button class="btn-reject" onclick="updateStatus(this,'rejected')">
-                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        Reject
-                    </button>
-                    <button class="btn-approve" onclick="updateStatus(this,'approved')">
-                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                        Approve
-                    </button>
-                </div>
-            </div>
+            <svg class="req-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
     </div>
 
-    {{-- Request 2 - Pending --}}
-    <div class="req-card" data-status="pending" data-chapter="yes usm penang" data-amount="3200">
-        <div class="req-card-head" onclick="toggleReq(this)">
-            <div class="req-left">
-                <div class="req-title">Engineering Innovation Workshop Series — Budget Request</div>
-                <div class="req-meta">
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        YES USM Penang
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        Submitted 22 Apr 2025
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                        Est. 120 attendees
-                    </span>
-                    <span class="badge b-pending" style="font-size:9px">Pending Review</span>
-                </div>
-            </div>
-            <div class="req-right">
-                <div>
-                    <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--grey);text-align:right;margin-bottom:2px">Requested</div>
-                    <div class="req-amount">RM 3,200</div>
-                </div>
-                <svg class="req-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
+    <div class="req-body">
+        {{-- Shared 4-stage pipeline: Submitted → Under Review → Approved → Reimbursed --}}
+        @php
+            $stage = $budget->stage; // 'review' | 'approved' | 'reimbursed' | 'rejected'
+            $apCls = $stage==='approved' ? 'active' : (in_array($stage,['reimbursed']) ? 'done' : '');
+            $rbCls = $stage==='reimbursed' ? 'done' : '';
+        @endphp
+        <div class="bpipe">
+            <div class="bp"><div class="bp-dot done"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="bp-lbl done">Submitted</div></div>
+            <div class="bp"><div class="bp-dot {{ $stage==='review' ? 'active' : 'done' }}"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></div><div class="bp-lbl {{ $stage==='review' ? 'active' : 'done' }}">Under Review</div></div>
+            @if($stage==='rejected')
+            <div class="bp"><div class="bp-dot rejected"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="bp-lbl rejected">Rejected</div></div>
+            <div class="bp"><div class="bp-dot"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg></div><div class="bp-lbl">Reimbursed</div></div>
+            @else
+            <div class="bp"><div class="bp-dot {{ $apCls }}"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="bp-lbl {{ $apCls }}">Approved</div></div>
+            <div class="bp"><div class="bp-dot {{ $rbCls }}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg></div><div class="bp-lbl {{ $rbCls }}">Reimbursed</div></div>
+            @endif
         </div>
-        <div class="req-body">
-            <div class="req-grid">
-                <div class="req-col">
-                    <div class="rc-label">Event Details</div>
-                    <div style="font-size:12px;color:#444;line-height:1.65">
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Event:</strong> Engineering Innovation Workshop (3-session series)</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Dates:</strong> 5, 12, 19 Jul 2025</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Venue:</strong> USM Engineering Campus, Nibong Tebal</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Type:</strong> Technical Workshop Series</div>
-                        <div><strong style="color:var(--navy)">Speakers:</strong> 3 industry engineers</div>
-                    </div>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Budget Breakdown</div>
-                    <table class="blt">
-                        <tr><td>Speaker Honorarium (×3)</td><td>RM 900</td></tr>
-                        <tr><td>Workshop Materials</td><td>RM 1,200</td></tr>
-                        <tr><td>Refreshments (×3 sessions)</td><td>RM 700</td></tr>
-                        <tr><td>Certificates & Printing</td><td>RM 400</td></tr>
-                        <tr><td><strong>Total Requested</strong></td><td><strong>RM 3,200</strong></td></tr>
-                    </table>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Supporting Documents</div>
-                    <div style="display:flex;flex-direction:column;gap:8px">
-                        <div style="display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--light);padding:10px 12px;border-radius:3px">
-                            <div style="width:30px;height:30px;background:#fff;border:1px solid var(--light);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            </div>
-                            <div style="flex:1;min-width:0">
-                                <div style="font-size:11px;font-weight:600;color:var(--navy)">workshop_proposal.pdf</div>
-                                <div style="font-size:10px;color:var(--grey)">PDF · 0.9 MB</div>
-                            </div>
-                            <button style="padding:5px 10px;background:var(--navy-dark);color:#fff;border:none;cursor:pointer;font-size:9px;font-weight:700;border-radius:2px">View</button>
-                        </div>
-                    </div>
+        <div class="req-grid">
+            <div class="req-col">
+                <div class="rc-label">Event Details</div>
+                <div style="font-size:12px;color:#444;line-height:1.65">
+                    <div style="margin-bottom:6px"><strong style="color:var(--navy)">Event:</strong> {{ $budget->event?->title ?? '—' }}</div>
+                    @if($budget->event?->start_date)
+                    <div style="margin-bottom:6px"><strong style="color:var(--navy)">Date:</strong> {{ $budget->event->start_date->format('j M Y') }}@if($budget->event->end_date && $budget->event->end_date->ne($budget->event->start_date)) – {{ $budget->event->end_date->format('j M Y') }}@endif</div>
+                    @endif
+                    @if($budget->event?->venue)
+                    <div style="margin-bottom:6px"><strong style="color:var(--navy)">Venue:</strong> {{ $budget->event->venue }}</div>
+                    @endif
+                    @if($budget->event?->category)
+                    <div style="margin-bottom:6px"><strong style="color:var(--navy)">Type:</strong> {{ $budget->event->category }}</div>
+                    @endif
+                    @if($budget->category)
+                    <div><strong style="color:var(--navy)">Budget Category:</strong> {{ $budget->category }}</div>
+                    @endif
+                    @if($budget->justification)
+                    <div style="margin-top:8px;padding:8px;background:var(--off);border:1px solid var(--light);border-radius:3px;font-size:11px;color:#555;line-height:1.5">{{ $budget->justification }}</div>
+                    @endif
                 </div>
             </div>
-            <div class="req-foot">
-                <div class="req-comment">
-                    <label>Admin Notes (optional — sent to chapter)</label>
-                    <textarea placeholder="Add a note or reason for rejection…"></textarea>
-                </div>
-                <div class="req-actions">
-                    <button class="btn-reject" onclick="updateStatus(this,'rejected')">
-                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        Reject
-                    </button>
-                    <button class="btn-approve" onclick="updateStatus(this,'approved')">
-                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                        Approve
-                    </button>
-                </div>
+            <div class="req-col">
+                <div class="rc-label">Budget Breakdown</div>
+                @php
+                    $apprLabel = $budget->status === 'rejected' ? 'Willing to Fund' : 'Approved';
+                    $apprColor = $budget->status === 'rejected' ? 'var(--amber)' : 'var(--green)';
+                @endphp
+                <table class="blt">
+                    <tr style="color:var(--grey)">
+                        <td style="font-size:9px;text-transform:uppercase;letter-spacing:.5px">Category</td>
+                        <td style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Requested</td>
+                        <td style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;text-align:right">{{ $apprLabel }}</td>
+                    </tr>
+                    @foreach ($budget->items as $item)
+                    @php $reqAmt = $item->quantity * $item->unit_cost; @endphp
+                    <tr>
+                        <td>{{ $item->name }}@if($item->quantity > 1) ×{{ $item->quantity }}@endif</td>
+                        <td style="text-align:right;color:var(--grey)">RM {{ number_format($reqAmt, 2) }}</td>
+                        @if($budget->status === 'pending')
+                        <td style="text-align:right;padding-left:8px">
+                            <input type="number" class="appr-input" data-budget="{{ $budget->id }}" data-item="{{ $item->id }}"
+                                value="{{ number_format($reqAmt, 2, '.', '') }}" min="0" step="0.01" oninput="recalcAppr({{ $budget->id }})"
+                                style="width:90px;border:1px solid var(--light);background:var(--off);padding:5px 7px;font-size:11px;color:var(--navy);outline:none;border-radius:3px;text-align:right"/>
+                        </td>
+                        @else
+                        <td style="text-align:right;color:{{ $apprColor }};font-weight:600">RM {{ number_format($item->approved_amount ?? $reqAmt, 2) }}</td>
+                        @endif
+                    </tr>
+                    @endforeach
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td style="text-align:right"><strong>RM {{ number_format($budget->total_requested, 2) }}</strong></td>
+                        @if($budget->status === 'pending')
+                        <td style="text-align:right"><strong style="color:var(--navy)">RM <span id="appr-total-{{ $budget->id }}">{{ number_format($budget->total_requested, 2) }}</span></strong></td>
+                        @else
+                        <td style="text-align:right"><strong style="color:{{ $apprColor }}">RM {{ number_format((float) ($budget->total_approved ?? 0), 2) }}</strong></td>
+                        @endif
+                    </tr>
+                </table>
             </div>
-        </div>
-    </div>
+            <div class="req-col">
+                @if($budget->status === 'approved')
+                    <div class="rc-label">Decision</div>
+                    <div style="background:var(--green-bg);border:1px solid var(--green-border);padding:12px;border-radius:3px;font-size:12px;color:#166534;line-height:1.6">Approved · RM {{ number_format($amountNum, 2) }}</div>
+                    <div style="margin-top:8px;font-size:10px;color:var(--grey)">Approved · {{ ($budget->decided_at ?? $budget->updated_at)->format('j M Y') }}</div>
+                    @if($budget->internal_notes)
+                    <div class="rc-label" style="margin:12px 0 6px">Internal Notes</div>
+                    <div style="background:var(--off);border:1px dashed var(--light);padding:8px 10px;border-radius:3px;font-size:11px;color:#555;line-height:1.5">{{ $budget->internal_notes }}</div>
+                    @endif
+                @elseif($budget->status === 'rejected')
+                    <div class="rc-label">Rejection Reason <span style="color:var(--grey);font-weight:400;text-transform:none;letter-spacing:0">(sent to chapter)</span></div>
+                    <div style="background:var(--red-l);border:1px solid rgba(192,57,43,.2);padding:12px;border-radius:3px;font-size:12px;color:var(--red);line-height:1.6">{{ $budget->decision_notes ?? 'No reason provided.' }}</div>
+                    <div style="margin-top:8px;font-size:10px;color:var(--grey)">Rejected · {{ ($budget->decided_at ?? $budget->updated_at)->format('j M Y') }}</div>
+                    @if($budget->internal_notes)
+                    <div class="rc-label" style="margin:12px 0 6px">Internal Notes</div>
+                    <div style="background:var(--off);border:1px dashed var(--light);padding:8px 10px;border-radius:3px;font-size:11px;color:#555;line-height:1.5">{{ $budget->internal_notes }}</div>
+                    @endif
+                @else
+                    <div class="rc-label">Approval Amount</div>
+                    <div style="font-size:11px;color:var(--grey);margin-bottom:8px;line-height:1.5">Set each category's approved figure in the breakdown. Total to approve:</div>
+                    <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--navy)">RM <span id="appr-summary-{{ $budget->id }}">{{ number_format($budget->total_requested, 2) }}</span></div>
+                @endif
 
-    {{-- Request 3 - Approved --}}
-    <div class="req-card" data-status="approved" data-chapter="yes utm kl" data-amount="5800">
-        <div class="req-card-head" onclick="toggleReq(this)">
-            <div class="req-left">
-                <div class="req-title">National Hackathon 2025 — Budget Request</div>
-                <div class="req-meta">
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        YES UTM Kuala Lumpur
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        Submitted 10 Mar 2025 · Approved 15 Mar 2025
-                    </span>
-                    <span class="badge b-approved" style="font-size:9px">Approved</span>
-                </div>
-            </div>
-            <div class="req-right">
-                <div>
-                    <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--grey);text-align:right;margin-bottom:2px">Approved</div>
-                    <div class="req-amount" style="color:var(--green)">RM 5,800</div>
-                </div>
-                <svg class="req-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                {{-- Event PPW — quick download for review (event was approved within the system) --}}
+                <div class="rc-label" style="margin:14px 0 6px">Event PPW</div>
+                @if($budget->event?->ppw_path)
+                <a class="doc-chip" href="{{ asset('storage/' . $budget->event->ppw_path) }}" target="_blank" rel="noopener" style="display:inline-flex">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span><strong>Download PPW</strong><em>{{ $budget->event->ppw_filename ?? 'event-ppw.pdf' }}</em></span>
+                </a>
+                @else
+                <div style="font-size:11px;color:var(--grey)">No PPW on file for this event.</div>
+                @endif
             </div>
         </div>
-        <div class="req-body">
-            <div class="req-grid">
-                <div class="req-col">
-                    <div class="rc-label">Event Details</div>
-                    <div style="font-size:12px;color:#444;line-height:1.65">
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Event:</strong> National Engineering Hackathon 2025</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Date:</strong> 22–23 Mar 2025 (completed)</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Venue:</strong> UTM KL City Campus</div>
-                        <div><strong style="color:var(--navy)">Attendance:</strong> 340 participants · 68 teams</div>
-                    </div>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Budget Breakdown</div>
-                    <table class="blt">
-                        <tr><td>Prize Money</td><td>RM 2,500</td></tr>
-                        <tr><td>Venue & AV Equipment</td><td>RM 1,500</td></tr>
-                        <tr><td>Catering (2 days)</td><td>RM 1,200</td></tr>
-                        <tr><td>Marketing & Materials</td><td>RM 600</td></tr>
-                        <tr><td><strong>Total Approved</strong></td><td><strong>RM 5,800</strong></td></tr>
-                    </table>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Admin Notes</div>
-                    <div style="background:var(--green-bg);border:1px solid var(--green-border);padding:12px;border-radius:3px;font-size:12px;color:#166534;line-height:1.6">
-                        Approved in full. Strong proposal with clear budget justification and confirmed industry sponsors. Well within per-event allocation for Klang Valley.
-                    </div>
-                    <div style="margin-top:8px;font-size:10px;color:var(--grey)">Reviewed by Admin · 15 Mar 2025</div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {{-- Request 4 - Rejected --}}
-    <div class="req-card" data-status="rejected" data-chapter="yes unikl" data-amount="8000">
-        <div class="req-card-head" onclick="toggleReq(this)">
-            <div class="req-left">
-                <div class="req-title">International Speaker Series — Budget Request</div>
-                <div class="req-meta">
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        YES UniKL
-                    </span>
-                    <span class="req-meta-item">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        Submitted 5 Apr 2025 · Rejected 8 Apr 2025
-                    </span>
-                    <span class="badge b-rejected" style="font-size:9px">Rejected</span>
-                </div>
+        {{-- Invoices / receipts (submitted by the chapter after approval) --}}
+        @if($budget->status !== 'pending')
+        <div class="req-docs">
+            <div class="rc-label" style="margin-bottom:10px">Invoices / Receipts</div>
+            @if($budget->receipts->count())
+            <div class="doc-strip">
+                @foreach($budget->receipts as $receipt)
+                <a class="doc-chip" href="{{ $receipt->url }}" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span><strong>Receipt</strong><em>{{ $receipt->filename }}</em></span>
+                </a>
+                @endforeach
             </div>
-            <div class="req-right">
-                <div>
-                    <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--grey);text-align:right;margin-bottom:2px">Requested</div>
-                    <div class="req-amount" style="color:var(--red)">RM 8,000</div>
+            @else
+            <div style="font-size:11px;color:var(--grey)">No invoices submitted yet — awaiting the chapter.</div>
+            @endif
+        </div>
+
+        {{-- Reimbursement (admin reimburses against receipts, capped at the approved amount) --}}
+        @if($budget->status === 'approved')
+        @php $cap = (float) ($budget->total_approved ?? $budget->total_requested); @endphp
+        <div class="req-foot">
+            @if($budget->reimbursed_at)
+            <div style="flex:1;font-size:12px;color:#166534">
+                <strong>Reimbursed RM {{ number_format((float) $budget->total_reimbursed, 2) }}</strong>
+                <span style="color:var(--grey)">of RM {{ number_format($cap, 2) }} approved · {{ $budget->reimbursed_at->format('j M Y') }}</span>
+            </div>
+            @elseif($budget->receipts->count())
+            {{-- Receipts are in — reimbursement can be processed. --}}
+            <form method="POST" action="{{ route('admin.budget-requests.reimburse', $budget) }}" class="req-comment" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;flex:1">
+                @csrf
+                <div style="flex:1;min-width:160px">
+                    <label>Reimbursed Amount (RM) — max {{ number_format($cap, 2) }}</label>
+                    <input type="number" name="total_reimbursed" step="0.01" min="0" max="{{ $cap }}" required
+                        placeholder="Amount to reimburse"
+                        style="width:100%;border:1px solid var(--light);background:var(--off);padding:8px 12px;font-size:12px;color:var(--navy);outline:none;border-radius:3px"/>
                 </div>
-                <svg class="req-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                <button type="submit" class="btn-approve">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    Mark Reimbursed
+                </button>
+            </form>
+            {{-- An approval can still be reversed to a rejection until funds are released. --}}
+            <div class="req-actions">
+                <button type="button" class="btn-reject" onclick="openReject({{ $budget->id }}, '{{ route('admin.budget-requests.reject', $budget) }}')">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Reject
+                </button>
+            </div>
+            @else
+            {{-- No receipts yet — reimbursement isn't available, but the admin can still reject. --}}
+            <div style="flex:1;font-size:12px;color:var(--grey);align-self:center">Reimbursement opens once the chapter submits invoices / receipts.</div>
+            <div class="req-actions">
+                <button type="button" class="btn-reject" onclick="openReject({{ $budget->id }}, '{{ route('admin.budget-requests.reject', $budget) }}')">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Reject
+                </button>
+            </div>
+            @endif
+        </div>
+        @endif
+        @endif
+
+        @if($budget->status === 'pending')
+        <div class="req-foot">
+            <div class="req-comment">
+                <label>Internal Notes (admin only — not shown to the chapter)</label>
+                <textarea id="internal-{{ $budget->id }}" placeholder="Internal remarks for the review team…"></textarea>
+            </div>
+            <div class="req-actions">
+                <button type="button" class="btn-reject" onclick="openReject({{ $budget->id }}, '{{ route('admin.budget-requests.reject', $budget) }}')">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Reject
+                </button>
+                {{-- Empty form; the per-category amounts + internal notes are injected by submitApprove(). --}}
+                <form method="POST" action="{{ route('admin.budget-requests.approve', $budget) }}" id="approve-form-{{ $budget->id }}">@csrf</form>
+                <button type="button" class="btn-approve" onclick="submitApprove({{ $budget->id }})">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    Approve
+                </button>
             </div>
         </div>
-        <div class="req-body">
-            <div class="req-grid">
-                <div class="req-col">
-                    <div class="rc-label">Event Details</div>
-                    <div style="font-size:12px;color:#444;line-height:1.65">
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Event:</strong> International Engineering Speaker Series</div>
-                        <div style="margin-bottom:6px"><strong style="color:var(--navy)">Proposed Date:</strong> Aug 2025</div>
-                        <div><strong style="color:var(--navy)">Type:</strong> Speaker event with international guests</div>
-                    </div>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Budget Breakdown</div>
-                    <table class="blt">
-                        <tr><td>Speaker Fees (×2 intl.)</td><td>RM 5,000</td></tr>
-                        <tr><td>Travel & Accommodation</td><td>RM 2,000</td></tr>
-                        <tr><td>Venue & Catering</td><td>RM 1,000</td></tr>
-                        <tr><td><strong>Total Requested</strong></td><td><strong>RM 8,000</strong></td></tr>
-                    </table>
-                </div>
-                <div class="req-col">
-                    <div class="rc-label">Rejection Notes</div>
-                    <div style="background:var(--red-l);border:1px solid rgba(192,57,43,.2);padding:12px;border-radius:3px;font-size:12px;color:var(--red);line-height:1.6">
-                        Request exceeds single-event allocation cap (RM 6,000). International speaker fees not covered by standard YES budget. Please resubmit with reduced scope or seek co-sponsorship from faculty.
-                    </div>
-                    <div style="margin-top:8px;font-size:10px;color:var(--grey)">Reviewed by Admin · 8 Apr 2025</div>
-                </div>
-            </div>
+        @endif
+
+        <div class="req-audit">
+            <a href="{{ route('admin.activity', ['subject_type' => 'App\\Models\\StudentEventBudget', 'subject_id' => $budget->id]) }}" class="req-audit-link">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                View audit trail
+            </a>
         </div>
     </div>
+</div>
+@empty
+<div class="empty-state">
+    <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    <p>No budget requests have been submitted yet.</p>
+</div>
+@endforelse
 
 </div>
 
 <div class="empty-state" id="empty-state" style="display:none">
     <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-    <p>No budget requests match your current filters.</p>
+    <p>No budget requests match the current filters.</p>
+</div>
+
+{{-- Reject reason modal (chapter-facing) --}}
+<div id="rejectModal" class="bmodal">
+    <form method="POST" id="rejectForm" class="bmodal-box">
+        @csrf
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px">Reject budget request</div>
+        <div style="font-size:11px;color:var(--grey);margin-bottom:12px;line-height:1.5">This reason is sent to the chapter and recorded in the audit trail. The chapter can reinstate the request after revising.</div>
+        <textarea name="feedback" id="rejectFeedback" required placeholder="Reason for rejection…"
+            style="width:100%;border:1px solid var(--light);background:var(--off);padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--navy);outline:none;border-radius:3px;min-height:90px;resize:vertical"></textarea>
+        <input type="hidden" name="internal_notes" id="rejectInternalHidden">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+            <button type="button" onclick="closeReject()" style="background:none;border:1px solid var(--light);color:var(--grey);padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:3px;font-family:'DM Sans',sans-serif">Cancel</button>
+            <button type="submit" class="btn-reject" onclick="injectReject()">Reject Request</button>
+        </div>
+    </form>
 </div>
 
 @endsection
@@ -437,20 +442,54 @@ function toggleReq(head) {
     chevron.classList.toggle('open', !isOpen);
 }
 
-function updateStatus(btn, status) {
-    const card  = btn.closest('.req-card');
-    const badge = card.querySelector('.badge');
-    const foot  = btn.closest('.req-foot');
-    const note  = foot.querySelector('textarea').value.trim();
+// Live total of the per-category approved inputs.
+function recalcAppr(id) {
+    let total = 0;
+    document.querySelectorAll('.appr-input[data-budget="' + id + '"]').forEach(i => total += parseFloat(i.value) || 0);
+    const t = total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const a = document.getElementById('appr-total-' + id);   if (a) a.textContent = t;
+    const b = document.getElementById('appr-summary-' + id); if (b) b.textContent = t;
+}
 
-    card.dataset.status = status;
-    badge.className     = 'badge ' + (status === 'approved' ? 'b-approved' : 'b-rejected');
-    badge.textContent   = status === 'approved' ? 'Approved' : 'Rejected';
+// Approve: inject per-category amounts + internal notes into the hidden form, then submit.
+function submitApprove(id) {
+    const form = document.getElementById('approve-form-' + id);
+    form.querySelectorAll('.injected').forEach(e => e.remove());
+    document.querySelectorAll('.appr-input[data-budget="' + id + '"]').forEach(inp => {
+        const h = document.createElement('input');
+        h.type = 'hidden'; h.className = 'injected';
+        h.name = 'approved[' + inp.dataset.item + ']'; h.value = inp.value;
+        form.appendChild(h);
+    });
+    const hn = document.createElement('input');
+    hn.type = 'hidden'; hn.className = 'injected';
+    hn.name = 'internal_notes'; hn.value = document.getElementById('internal-' + id)?.value || '';
+    form.appendChild(hn);
+    form.submit();
+}
 
-    foot.querySelector('.req-actions').innerHTML =
-        `<span style="font-size:11px;font-weight:600;color:var(--grey)">Status updated to <strong>${status}</strong></span>`;
-
-    showToast(status === 'approved' ? 'Budget request approved. Chapter notified.' : 'Budget request rejected. Chapter notified.', status === 'approved' ? 'success' : 'danger');
+// Reject: open the chapter-facing reason modal.
+let rejectBudgetId = null;
+function openReject(id, action) {
+    rejectBudgetId = id;
+    const f = document.getElementById('rejectForm');
+    f.action = action;
+    document.getElementById('rejectFeedback').value = '';
+    document.getElementById('rejectModal').classList.add('open');
+    setTimeout(() => document.getElementById('rejectFeedback').focus(), 50);
+}
+function closeReject() { document.getElementById('rejectModal').classList.remove('open'); }
+// On reject, also carry the per-category amounts HQ is willing to fund + internal notes.
+function injectReject() {
+    const form = document.getElementById('rejectForm');
+    form.querySelectorAll('.injected').forEach(e => e.remove());
+    document.querySelectorAll('.appr-input[data-budget="' + rejectBudgetId + '"]').forEach(inp => {
+        const h = document.createElement('input');
+        h.type = 'hidden'; h.className = 'injected';
+        h.name = 'approved[' + inp.dataset.item + ']'; h.value = inp.value;
+        form.appendChild(h);
+    });
+    document.getElementById('rejectInternalHidden').value = document.getElementById('internal-' + rejectBudgetId)?.value || '';
 }
 
 function filterRequests() {

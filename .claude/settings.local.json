@@ -4,7 +4,17 @@
       "Bash(php artisan *)",
       "Bash(xargs ls *)",
       "Bash(xargs grep *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(Get-Content \"c:\\\\Young-Engineer-Section-Hub\\\\storage\\\\logs\\\\laravel.log\" -Tail 100)",
+      "Bash(Select-String -Pattern \"ERROR|Exception|error\")",
+      "Bash(Select-Object -Last 30)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Young-Engineer-Section-Hub\\\\app\\\\Http\" -Directory)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($logo = \"C:\\\\Young-Engineer-Section-Hub\\\\public\\\\images\\\\iem-yes-logo.png\"; if \\(Test-Path $logo\\) { Copy-Item $logo \"C:\\\\Young-Engineer-Section-Hub\\\\demo-video\\\\public\\\\iem-yes-logo.png\" -Force; \"copied logo\" } else { \"LOGO MISSING: $logo\" }; Get-ChildItem \"C:\\\\Young-Engineer-Section-Hub\\\\demo-video\\\\public\" -Name)",
+      "PowerShell($src = \"C:\\\\Users\\\\admin\\\\Videos\\\\2026-06-20 13-28-52.mkv\"; if \\(Test-Path $src\\) { \"EXISTS\"; \\(Get-Item $src\\).Length/1MB } else { \"MISSING\" }; npx remotion ffprobe \"$src\" 2>&1 | Select-String -Pattern \"Duration|Stream|Video:|Audio:\" | Out-String)",
+      "PowerShell(cd \"C:\\\\Young-Engineer-Section-Hub\\\\demo-video\"; $ff=\"node_modules\\\\ffmpeg-static\\\\ffmpeg.exe\"; & $ff -i out/demo.mp4 2>&1 | Select-String \"Duration\"; & $ff -y -ss 3.73 -i out/demo.mp4 -frames:v 1 out/final_transition.png 2>&1 | Out-Null; & $ff -y -ss 165.0 -i out/demo.mp4 -frames:v 1 out/final_end.png 2>&1 | Out-Null; & $ff -y -ss 95 -i out/demo.mp4 -frames:v 1 out/final_mid.png 2>&1 | Out-Null; \"frames extracted\")",
+      "Bash(./node_modules/ffmpeg-static/ffmpeg.exe -i out/demo.mp4)"
     ]
   }
 }

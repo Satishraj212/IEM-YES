@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NATSUM 2025 – National Student Summit | YES IEM Malaysia</title>
+<title>NATSUM {{ $event?->year ?? '2025' }} – National Student Summit | YES IEM Malaysia</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -275,9 +275,16 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
     </div>
     <h1>NAT<span class="accent">SUM</span></h1>
     <div class="subtitle">National Student Summit</div>
-    <p>Malaysia's premier gathering of engineering and science students — a three-day summit of competitions, industry workshops, leadership sessions, and networking with the brightest young engineers in the country.</p>
+    @if($event?->theme)
+    <div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:20px;opacity:.9">{{ $event->theme }}</div>
+    @endif
+    <p>{{ $event?->description ?? 'Malaysia\'s premier gathering of engineering and science students — a three-day summit of competitions, industry workshops, leadership sessions, and networking with the brightest young engineers in the country.' }}</p>
     <div class="hero-cta-row">
-      <a href="#join" class="btn-gold">Register for NATSUM 2025 →</a>
+      @if($event?->registration_url)
+      <a href="{{ $event->registration_url }}" target="_blank" class="btn-gold">Register for NATSUM {{ $event->year }} →</a>
+      @else
+      <a href="#join" class="btn-gold">Register for NATSUM {{ $event?->year ?? '2025' }} →</a>
+      @endif
       <a href="#about" class="btn-ghost">Learn More</a>
     </div>
   </div>
@@ -292,8 +299,8 @@ footer { background: var(--navy-dark); padding: 48px 60px 0; }
     <div class="countdown-item"><span class="num" id="cd-secs">09</span><span class="lbl">Secs</span></div>
   </div>
   <div class="hero-date-badge">
-    <div class="date">14–16 Aug 2025</div>
-    <div class="venue">📍 Universiti Malaya, Kuala Lumpur</div>
+    <div class="date">{{ $event?->event_date ?? '14–16 Aug 2025' }}</div>
+    <div class="venue">📍 {{ $event?->location ?? 'Universiti Malaya, Kuala Lumpur' }}</div>
   </div>
 </div>
 

@@ -9,11 +9,12 @@ class StudentEventBudgetItem extends Model
 {
     protected $table = 'event_budget_items';
 
-    protected $fillable = ['event_budget_id', 'name', 'quantity', 'unit_cost'];
+    protected $fillable = ['event_budget_id', 'name', 'quantity', 'unit_cost', 'approved_amount'];
 
     protected $casts = [
-        'quantity'  => 'integer',
-        'unit_cost' => 'decimal:2',
+        'quantity'        => 'integer',
+        'unit_cost'       => 'decimal:2',
+        'approved_amount' => 'decimal:2',
     ];
 
     public function budget(): BelongsTo

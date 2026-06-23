@@ -7,7 +7,6 @@ use App\Models\Branch;
 use App\Models\OfficialEvent;
 use App\Models\StudentEventSubmission;
 use App\Models\FlagshipEvent;
-use App\Models\ActivityLog;
 
 class AdminSeeder extends Seeder
 {
@@ -240,19 +239,9 @@ class AdminSeeder extends Seeder
         ]);
 
         // ── Activity Logs ──────────────────────────────────────────────────────
-        $logs = [
-            ['event_registered', 'Nurul Ain registered for the Hackathon'],
-            ['membership_request', 'Ahmad Razif joined as Student Member'],
-            ['event_published', 'New event BIM Workshop published'],
-            ['event_published', 'Renewable Energy Camp at 50% capacity'],
-            ['membership_request', 'Sabah Branch added 12 new members'],
-            ['pledge_renewed', 'Johor Chapter endorsed the YES Declaration 2024'],
-            ['event_published', 'STEM Career Fair 2025 registration opened'],
-            ['event_submitted', 'Industry Collaboration Summit submitted for review'],
-        ];
-
-        foreach ($logs as [$type, $title]) {
-            ActivityLog::record(null, $type, $title);
-        }
+        // No fabricated entries — the activity feed is a true audit trail and is
+        // populated only by real actions (event review, org-chart uploads, budget
+        // and report decisions, etc.). The portal has no member/event registration
+        // or pledge flows, so those events are never logged.
     }
 }

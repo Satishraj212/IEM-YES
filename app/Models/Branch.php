@@ -16,7 +16,7 @@ class Branch extends Model
         'location', 'state', 'color',
         'year_founded', 'academic_year',
         'status', 'is_active', 'pledge_active', 'ranking',
-        'description', 'logo_path', 'org_chart_path',
+        'description', 'logo_path', 'org_chart_path', 'org_chart_requested_at',
         'member_count', 'new_members_this_month',
     ];
 
@@ -27,9 +27,25 @@ class Branch extends Model
         'ranking'                => 'integer',
         'member_count'           => 'integer',
         'new_members_this_month' => 'integer',
+        'org_chart_requested_at' => 'datetime',
     ];
 
+    /**
+     * Real student chapters (have a code + institution),
+     * excluding the state-aggregate placeholder rows.
+     */
+    public function scopeChapters(\Illuminate\Database\Eloquent\Builder $query)
+    {
+        return $query->whereNotNull('code')->where('code', '!=', '')
+                     ->whereNotNull('institution')->where('institution', '!=', '');
+    }
+
     // ── Relationships ──────────────────────────────────────────────────────────
+
+    public function adminUser(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(User::class, 'branch_id')->where('role', 'branch_admin');
+    }
 
     public function members(): HasMany
     {
@@ -46,6 +62,11 @@ class Branch extends Model
         return $this->hasMany(StudentEvent::class, 'branch_id');
     }
 
+    public function membershipSnapshots(): HasMany
+    {
+        return $this->hasMany(BranchMembershipSnapshot::class, 'branch_id')->orderBy('as_of');
+    }
+
     public function officialEvents(): HasMany
     {
         return $this->hasMany(OfficialEvent::class, 'branch_id');
@@ -59,6 +80,11 @@ class Branch extends Model
     public function annualReports(): HasMany
     {
         return $this->hasMany(AnnualReport::class, 'branch_id');
+    }
+
+    public function orgCharts(): HasMany
+    {
+        return $this->hasMany(BranchOrgChart::class, 'branch_id')->orderByDesc('created_at');
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────────
@@ -77,9 +103,25 @@ class Branch extends Model
             : null;
     }
 
+    /**
+     * Canonical chapter identity shown wherever a chapter action is tagged
+     * (event review, budget requests, activity feed, dashboard).
+     * Primary label — falls back to the code, then a placeholder.
+     */
+    public function getIdentityNameAttribute(): string
+    {
+        return $this->name ?: $this->code ?: 'Unknown Chapter';
+    }
+
+    /** Secondary identity line — the full institution this chapter belongs to. */
+    public function getIdentityInstitutionAttribute(): ?string
+    {
+        return $this->institution ?: $this->location ?: null;
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
-    public function scopeActive($query)
+    public function scopeActive(\Illuminate\Database\Eloquent\Builder $query)
     {
         return $query->where('status', 'active');
     }
